@@ -1,0 +1,95 @@
+/* Design tokens — the single source of colour for the page AND the 3D scene (read via cssToken()). */
+:root {
+  --bg: #e9eeec;
+  --surface: #f7f9f8;
+  --surface-2: #eef2f0;
+  --ink: #172220;
+  --muted: #586662;
+  --line: #c9d2cf;
+  --accent: #1f5e73;
+  --accent-ink: #ffffff;
+  --scene: #e1e7e5;
+  --scene-grid: #b4c0bc;
+  --scene-grid-2: #cfd8d5;
+  --scene-label: #42514d;
+  --rig: #6d7b77;
+  --actual: #1f4fd1;
+  --hole: #cdbb95;
+  --cement: #aaa69c;
+  --casing: #69757c;
+  --w1: #b2650a;
+  --w2: #0f7c76;
+  --w3: #ad3552;
+  --w4: #5650b0;
+  --w5: #687c16;
+  --w6: #8a4b2e;
+  --ok: #2b7f48;
+  --warn: #a96f12;
+  --crit: #bb3326;
+  --f-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
+  --f-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
+  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1514;
+    --surface: #162020;
+    --surface-2: #1c2827;
+    --ink: #e0e8e5;
+    --muted: #90a09b;
+    --line: #2b3735;
+    --accent: #6fb3c9;
+    --accent-ink: #0b1214;
+    --scene: #0c1211;
+    --scene-grid: #2f3d3a;
+    --scene-grid-2: #1d2826;
+    --scene-label: #9fb0ab;
+    --rig: #8a9a95;
+    --actual: #7fa6ff;
+    --hole: #6a5940;
+    --cement: #8f8b82;
+    --casing: #aab5bb;
+    --w1: #f0a43a;
+    --w2: #3cc4ba;
+    --w3: #ef6f8c;
+    --w4: #9a95f0;
+    --w5: #b6cf4f;
+    --w6: #e0936b;
+    --ok: #5cc57e;
+    --warn: #e3b14f;
+    --crit: #f07163;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1514;
+  --surface: #162020;
+  --surface-2: #1c2827;
+  --ink: #e0e8e5;
+  --muted: #90a09b;
+  --line: #2b3735;
+  --accent: #6fb3c9;
+  --accent-ink: #0b1214;
+  --scene: #0c1211;
+  --scene-grid: #2f3d3a;
+  --scene-grid-2: #1d2826;
+  --scene-label: #9fb0ab;
+  --rig: #8a9a95;
+  --actual: #7fa6ff;
+  --hole: #6a5940;
+  --cement: #8f8b82;
+  --casing: #aab5bb;
+  --w1: #f0a43a;
+  --w2: #3cc4ba;
+  --w3: #ef6f8c;
+  --w4: #9a95f0;
+  --w5: #b6cf4f;
+  --w6: #e0936b;
+  --ok: #5cc57e;
+  --warn: #e3b14f;
+  --crit: #f07163;
+  color-scheme: dark;
+}

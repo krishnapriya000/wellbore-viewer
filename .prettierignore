@@ -1,0 +1,4 @@
+dist
+coverage
+public/samples
+package-lock.json
