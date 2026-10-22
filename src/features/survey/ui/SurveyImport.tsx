@@ -65,16 +65,24 @@ export function SurveyImport({ activeWell }: { activeWell: string | null }) {
             Upload plan
             <input
               type="file"
-              accept=".csv,.tsv,.txt"
-              onChange={(e) => void onFile('plan', e.target.files?.[0])}
+              accept=".csv,.tsv,.txt,.xls,.xlsx"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                void onFile('plan', f);
+              }}
             />
           </label>
           <label className="btn">
             Upload actual
             <input
               type="file"
-              accept=".csv,.tsv,.txt"
-              onChange={(e) => void onFile('actual', e.target.files?.[0])}
+              accept=".csv,.tsv,.txt,.xls,.xlsx"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = '';
+                void onFile('actual', f);
+              }}
             />
           </label>
           <button type="button" className="btn" onClick={() => void loadSample()}>

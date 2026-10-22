@@ -6,7 +6,7 @@ Port one row at a time. Each row is one pull request with tests. "Done" = behave
 | --- | -------------------------------------------------------- | --------------------------------------------------- | --------------------------- |
 | 1   | Minimum curvature, arc interpolation, `atMd`             | `features/survey/lib/mcm.ts`                        | Done                        |
 | 2   | Survey parsing CSV, header detection, well column        | `features/survey/lib/parseSurvey.ts` (+ worker)     | Done                        |
-| 3   | XLSX upload                                              | SheetJS CDN build inside `parse.worker.ts`          | To do                       |
+| 3   | XLSX upload                                              | SheetJS CDN build inside `parse.worker.ts`          | Done                        |
 | 4   | Only the selected wellbore drills; speed; pause; restart | `features/drilling`                                 | Done                        |
 | 5   | Plan vs actual deviation, On plan / Watch / Off plan     | `features/drilling/model/deviation.ts`              | Done                        |
 | 6   | ft / m switch everywhere (incl. DLS °/30 m, speed)       | `shared/units` + `useUnits()`                       | Done (extend to new panels) |

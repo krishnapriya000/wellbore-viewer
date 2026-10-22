@@ -1,3 +1,4 @@
+import '@/shared/lib/r3fCompat';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import '@/shared/theme/tokens.css';

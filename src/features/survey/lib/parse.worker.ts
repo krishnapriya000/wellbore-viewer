@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import { expose } from 'comlink';
-import { parseSurveyText } from './parseSurvey';
+import { parseSurveyText, parseSurveyWorkbook } from './parseSurvey';
 
 /** Parsing runs off the main thread so a large file never freezes the 3D view. */
 const api = {
@@ -9,7 +9,12 @@ const api = {
     // Maps are structured-cloneable, but plain arrays are friendlier to inspect in devtools.
     return { wells: [...wells.entries()], issues };
   },
+  parseBuffer(buffer: ArrayBuffer, fallbackWell: string) {
+    const { wells, issues } = parseSurveyWorkbook(buffer, fallbackWell);
+    return { wells: [...wells.entries()], issues };
+  },
 };
 
 export type ParseWorkerApi = typeof api;
 expose(api);
+

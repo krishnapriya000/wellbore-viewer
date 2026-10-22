@@ -9,8 +9,13 @@ import { wellBounds } from '../lib/scene';
 import { CameraRig, type CameraView } from './CameraRig';
 import { ActualLayer } from './layers/ActualLayer';
 import { BitLayer } from './layers/BitLayer';
+import { CasingLayer } from './layers/CasingLayer';
+import { EventMarkersLayer } from './layers/EventMarkersLayer';
+import { GeologyWallsLayer } from './layers/GeologyWallsLayer';
 import { GridLayer } from './layers/GridLayer';
 import { PlanLayer } from './layers/PlanLayer';
+import { ScaleLayer } from './layers/ScaleLayer';
+import { SleeveLayer } from './layers/SleeveLayer';
 import { useSceneColors } from './useSceneColors';
 
 export function Viewport() {
@@ -41,11 +46,24 @@ export function Viewport() {
         />
         <CameraRig view={view} bounds={bounds} fitKey={wells.map((w) => w.name).join('|')} />
         <GridLayer bounds={bounds} colors={colors} />
+        <GeologyWallsLayer bounds={bounds} wells={wells} />
+        {wells.map((w) => (
+          <SleeveLayer key={`sleeve-${w.name}`} well={w} />
+        ))}
+        <CasingLayer />
         {wells.map((w) => (
           <PlanLayer key={w.name} well={w} color={colors.wells[w.slot] ?? colors.label} />
         ))}
         {active && <ActualLayer key={active.name} well={active} color={colors.actual} />}
         <BitLayer color={colors.actual} />
+        <EventMarkersLayer />
+        <ScaleLayer
+          bounds={bounds}
+          well={active}
+          color={colors.actual}
+          labelColor={colors.label}
+          gridColor={colors.grid}
+        />
       </Canvas>
 
       <div className="hud top">

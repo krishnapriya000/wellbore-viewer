@@ -12,10 +12,12 @@ interface DrillingState {
   activeWell: string | null;
   /** Bit measured depth, ft. Changes every frame — read with getState() or useThrottledStore, never a plain selector. */
   md: number;
+  mode: 'actual' | 'plan';
   playing: boolean;
   speedFtPerS: number;
   feed: FeedItem[];
   setActiveWell: (name: string, startMd?: number) => void;
+  setMode: (mode: 'actual' | 'plan') => void;
   setPlaying: (playing: boolean) => void;
   setSpeed: (ftPerS: number) => void;
   restart: () => void;
@@ -28,10 +30,12 @@ export const useDrilling = create<DrillingState>()(
   subscribeWithSelector((set) => ({
     activeWell: null,
     md: 0,
+    mode: 'actual',
     playing: true,
     speedFtPerS: 250,
     feed: [],
     setActiveWell: (name, startMd = 0) => set({ activeWell: name, md: startMd, feed: [], playing: true }),
+    setMode: (mode) => set({ mode }),
     setPlaying: (playing) => set({ playing }),
     setSpeed: (speedFtPerS) => set({ speedFtPerS }),
     restart: () => set({ md: 0, feed: [], playing: true }),

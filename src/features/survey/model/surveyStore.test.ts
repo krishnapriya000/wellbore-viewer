@@ -81,4 +81,43 @@ describe('surveyStore', () => {
     expect(st.order).toEqual(['L1', 'L2', 'L3']);
     expect(st.wells['L2']!.junction).toBe(4600);
   });
+
+  it('updates a selected wellbore trajectory without overwriting unrelated wellbores', async () => {
+    const fakeFetch = (async (url: string) =>
+      new Response(sampleCsv(url.includes('plan') ? 'plan' : 'actual'))) as unknown as typeof fetch;
+    await useSurveyStore.getState().loadSample(fakeFetch);
+
+    const store = useSurveyStore.getState();
+    const l1PlanLen = store.wells['L1']!.plan.length;
+    const l3ActualLen = store.wells['L3']!.actual.length;
+
+    // Update only L2 actual with new survey stations
+    store.setActual(
+      new Map([
+        [
+          'L2',
+          [
+            { md: 0, inc: 0, azi: 160 },
+            { md: 500, inc: 5, azi: 160 },
+            { md: 1000, inc: 10, azi: 160 },
+          ],
+        ],
+      ]),
+    );
+
+    const updated = useSurveyStore.getState();
+    // L1 and L3 are preserved
+    expect(updated.wells['L1']!.plan).toHaveLength(l1PlanLen);
+    expect(updated.wells['L3']!.actual).toHaveLength(l3ActualLen);
+
+    // L2 actual is updated with correct MCM computed coordinates
+    const l2 = updated.wells['L2']!;
+    expect(l2.actual).toHaveLength(3);
+    expect(l2.actual[2]!.md).toBe(1000);
+    expect(l2.actual[2]!.tvd).toBeGreaterThan(900);
+    expect(l2.actual[2]!.n).toBeLessThan(0); // azimuth 160 is south/east
+    expect(l2.actual[2]!.e).toBeGreaterThan(0);
+    expect(l2.actual[2]!.dls).toBeGreaterThan(0);
+  });
 });
+

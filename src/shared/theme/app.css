@@ -143,6 +143,9 @@ select {
 .feed div:first-child {
   border-color: var(--actual);
 }
+.feed div.event {
+  border-left: 3px solid var(--accent);
+}
 .well-label {
   font: 700 1rem var(--f-display);
   white-space: nowrap;
@@ -152,6 +155,320 @@ select {
   font: 700 1.1rem var(--f-display);
   color: var(--scene-label);
   pointer-events: none;
+}
+.bit-hud-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--actual);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: 700 0.72rem var(--f-mono);
+  color: var(--ink);
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transform: translate3d(0, -100%, 0);
+}
+.tvd-tick-label {
+  font: 600 0.68rem var(--f-mono);
+  color: var(--scene-label);
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 1px 2px var(--bg);
+  transform: translate3d(-100%, -50%, 0);
+  padding-right: 6px;
+}
+.tvd-staff-badge {
+  background: var(--actual);
+  color: var(--accent-ink);
+  font: 700 0.65rem var(--f-mono);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate3d(8px, -50%, 0);
+  display: inline-block;
+}
+.md-marker-label {
+  font: 600 0.65rem var(--f-mono);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.geology-wall-badge {
+  font: 600 0.68rem var(--f-mono);
+  color: var(--fg);
+  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.geology-wall-badge small {
+  color: var(--muted);
+  font: 400 0.62rem var(--f-mono);
+}
+.geology-override-badge {
+  font: 600 0.65rem var(--f-mono);
+  color: var(--warn, #f4d03f);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px dashed var(--warn, #f4d03f);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  backdrop-filter: blur(4px);
+  user-select: none;
+}
+
+/* 3D Event Markers */
+.event-marker-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font: 600 0.72rem var(--f-mono);
+  color: var(--ink);
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  user-select: none;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+  position: relative;
+}
+.event-marker-badge:hover {
+  transform: scale(1.06);
+  z-index: 10;
+}
+.event-marker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.event-marker-title {
+  font-weight: 700;
+  font-size: 0.7rem;
+}
+.event-marker-depth {
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.event-marker-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.7rem;
+  color: var(--ink);
+  white-space: normal;
+  min-width: 140px;
+  max-width: 220px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.event-marker-tooltip strong {
+  color: var(--accent);
+  font-size: 0.72rem;
+}
+.event-marker-tooltip small {
+  color: var(--muted);
+}
+.event-marker-tooltip p {
+  margin: 4px 0 0;
+  font-size: 0.68rem;
+  line-height: 1.3;
+}
+
+/* Formation Editor */
+.formation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.formation-item {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.formation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.formation-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.formation-comp {
+  font-family: var(--f-mono);
+  font-size: 0.72rem;
+}
+.formation-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.formation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* Engineering Events */
+.event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.event-item {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.event-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.event-note {
+  font-size: 0.78rem;
+  color: var(--fg);
+  margin-top: 2px;
+  word-break: break-word;
+}
+.event-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.event-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+/* Well Construction */
+.construction-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 250px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.construction-item {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.construction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+}
+.construction-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.construction-note {
+  font-size: 0.78rem;
+  color: var(--fg);
+  margin-top: 2px;
+  word-break: break-word;
+}
+.construction-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+.construction-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.construction-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fit-check-warning {
+  font-size: 0.72rem;
+  color: var(--warn, #f39c12);
+  background: color-mix(in srgb, var(--warn, #f39c12) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn, #f39c12) 30%, transparent);
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-family: var(--f-mono);
 }
 
 .seg {

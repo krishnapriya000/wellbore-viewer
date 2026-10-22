@@ -1,5 +1,8 @@
 import { lazy, Suspense, useEffect } from 'react';
+import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
+import { EventEditor } from '@/features/events';
+import { FormationEditor, StripLog } from '@/features/geology';
 import { SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
@@ -39,6 +42,17 @@ export function ViewerPage() {
         <ErrorBoundary name="Drilling">
           <DrillControls />
           <BitReadout />
+        </ErrorBoundary>
+        <ErrorBoundary name="Geology">
+          <StripLog activeWell={activeWell} />
+          <FormationEditor />
+        </ErrorBoundary>
+        <ErrorBoundary name="Well construction">
+          <Schematic activeWell={activeWell} />
+          <ConstructionEditor />
+        </ErrorBoundary>
+        <ErrorBoundary name="Events">
+          <EventEditor />
         </ErrorBoundary>
         <ErrorBoundary name="Survey data">
           <SurveyImport activeWell={activeWell} />
