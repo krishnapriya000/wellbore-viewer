@@ -1,23 +1,9 @@
-
-# Dependencies
-node_modules/
-
-# Build output
-dist/
-coverage/
-
-# Test output
-playwright-report/
-test-results/
-
-# Local files
+node_modules
+dist
+coverage
+playwright-report
+test-results
 *.local
-
-# Environment files
-.env
-.env.*
-!.env.example
-
-# Operating system
+.env.local
+.env.*.local
 .DS_Store
-
