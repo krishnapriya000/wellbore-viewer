@@ -711,3 +711,150 @@ tr.new td {
     animation: none !important;
   }
 }
+
+/* 3D Scene Reference Layers & HUD Overlays */
+.tvd-header-badge {
+  font: 700 0.72rem var(--f-mono);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.tvd-tick-label {
+  font: 500 0.68rem var(--f-mono);
+  color: var(--muted);
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+  transform: translate(-100%, -50%);
+}
+
+.tvd-staff-badge {
+  display: inline-block;
+  font: 600 0.7rem var(--f-mono);
+  color: var(--actual);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  margin-left: 12px;
+  transform: translateY(-50%);
+}
+
+.landing-plane-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font: 600 0.68rem var(--f-display);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.landing-plane-badge small {
+  font: 400 0.62rem var(--f-mono);
+  color: var(--muted);
+  text-transform: none;
+}
+
+.bit-hud-label {
+  font: 600 0.72rem var(--f-mono);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  color: var(--actual);
+  border: 1px solid var(--actual);
+  border-radius: 4px;
+  padding: 2px 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.md-marker-label {
+  font: 500 0.65rem var(--f-mono);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.compass {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  pointer-events: none;
+  user-select: none;
+}
+
+.compass-dir {
+  font-size: 1.15rem;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.compass-axis {
+  font: 500 0.62rem var(--f-mono);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.grid-scale-badge {
+  font: 500 0.66rem var(--f-mono);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 85%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.surface-label {
+  font: 600 0.72rem var(--f-display);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+

@@ -60,9 +60,11 @@ export function Viewport() {
         <ScaleLayer
           bounds={bounds}
           well={active}
+          wells={wells}
           color={colors.actual}
           labelColor={colors.label}
           gridColor={colors.grid}
+          wellColors={colors.wells}
         />
       </Canvas>
 
