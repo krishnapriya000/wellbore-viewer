@@ -17,6 +17,9 @@ export function ViewerPage() {
   const activeWell = useDrilling((s) => s.activeWell);
   const setActiveWell = useDrilling((s) => s.setActiveWell);
 
+  const setMode = useDrilling((s) => s.setMode);
+  const setPlaying = useDrilling((s) => s.setPlaying);
+
   // Until the API exists, start with the bundled sample surveys.
   useEffect(() => {
     if (status === 'empty') void loadSample();
@@ -55,7 +58,30 @@ export function ViewerPage() {
           <EventEditor />
         </ErrorBoundary>
         <ErrorBoundary name="Survey data">
-          <SurveyImport activeWell={activeWell} />
+          <SurveyImport
+            activeWell={activeWell}
+            onLoaded={(kind, wells) => {
+              const firstWell = wells.keys().next().value;
+              const targetWell = activeWell && wells.has(activeWell) ? activeWell : firstWell;
+              if (kind === 'actual') {
+                if (targetWell) {
+                  setActiveWell(targetWell, 0);
+                  setPlaying(true);
+                }
+                setMode('actual');
+              } else {
+                if (targetWell && (!activeWell || !wells.has(activeWell))) {
+                  setActiveWell(targetWell, 0);
+                }
+                setMode('plan');
+              }
+            }}
+            onLoadSample={async () => {
+              await loadSample();
+              setActiveWell('L1', 0);
+              setPlaying(true);
+            }}
+          />
           <SurveyTable well={activeWell} bitStore={useDrilling} />
         </ErrorBoundary>
       </aside>

@@ -143,4 +143,79 @@ describe('<FormationEditor>', () => {
       expect(useGeologyStore.getState().formations.some((f) => f.name === 'Overburden')).toBe(false);
     });
   });
+
+  describe('formation visibility and legend', () => {
+    it('displays DEMO / SAMPLE GEOLOGY banner to clearly identify demo stratigraphy', () => {
+      renderWithRole('Wellbore.Viewer');
+      expect(screen.getByText('DEMO / SAMPLE GEOLOGY')).toBeInTheDocument();
+      expect(screen.getByText(/sample stratigraphy loaded for visualization/i)).toBeInTheDocument();
+    });
+
+    it('toggles formation visibility when the visibility button is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithRole('Wellbore.Engineer');
+
+      const toggleBtn = screen.getByRole('button', { name: /hide overburden/i });
+      expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
+
+      await user.click(toggleBtn);
+
+      // Now hidden
+      expect(useGeologyStore.getState().formations.find((f) => f.id === 'fm-1')?.visible).toBe(false);
+      expect(screen.getByRole('button', { name: /show overburden/i })).toHaveAttribute('aria-pressed', 'false');
+    });
+
+    it('expands and collapses the USGS lithology pattern legend with 12 patterns', async () => {
+      const user = userEvent.setup();
+      renderWithRole('Wellbore.Viewer');
+
+      const legendToggle = screen.getByRole('button', { name: /show usgs lithology legend/i });
+      expect(screen.queryByRole('region', { name: /usgs lithology patterns legend/i })).not.toBeInTheDocument();
+
+      await user.click(legendToggle);
+
+      const legendRegion = screen.getByRole('region', { name: /usgs lithology patterns legend/i });
+      expect(legendRegion).toBeInTheDocument();
+
+      // Check for distinct lithology patterns
+      expect(screen.getByText('Sandstone')).toBeInTheDocument();
+      expect(screen.getByText('Shale')).toBeInTheDocument();
+      expect(screen.getByText('Limestone')).toBeInTheDocument();
+      expect(screen.getByText('Dolomite')).toBeInTheDocument();
+      expect(screen.getByText('Siltstone')).toBeInTheDocument();
+      expect(screen.getByText('Coal')).toBeInTheDocument();
+      expect(screen.getByText('Anhydrite')).toBeInTheDocument();
+      expect(screen.getByText(/salt/i)).toBeInTheDocument();
+      expect(screen.getByText('Conglomerate')).toBeInTheDocument();
+      expect(screen.getByText('Marl')).toBeInTheDocument();
+      expect(screen.getByText('Chert')).toBeInTheDocument();
+      expect(screen.getByText('Basement')).toBeInTheDocument();
+
+      // Collapse legend
+      await user.click(screen.getByRole('button', { name: /hide lithology legend/i }));
+      expect(screen.queryByRole('region', { name: /usgs lithology patterns legend/i })).not.toBeInTheDocument();
+    });
+
+    it('validates that lithology composition percentages must total 100%', async () => {
+      const user = userEvent.setup();
+      renderWithRole('Wellbore.Engineer');
+
+      const nameInput = screen.getByLabelText(/formation name/i);
+      const fromInput = screen.getByPlaceholderText(/top depth/i);
+      const toInput = screen.getByPlaceholderText(/base depth/i);
+      const pctInput = screen.getByLabelText(/percentage 1/i);
+
+      await user.type(nameInput, 'Partial Mix');
+      await user.type(fromInput, '3000');
+      await user.type(toInput, '3500');
+      await user.clear(pctInput);
+      await user.type(pctInput, '75'); // 75% != 100%
+
+      const submitBtn = screen.getByRole('button', { name: /^add formation$/i });
+      await user.click(submitBtn);
+
+      expect(screen.getByText(/must total 100%/i)).toBeInTheDocument();
+      expect(useGeologyStore.getState().formations.some((f) => f.name === 'Partial Mix')).toBe(false);
+    });
+  });
 });

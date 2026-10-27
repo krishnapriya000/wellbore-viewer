@@ -9,7 +9,15 @@ import { toScene } from '../../lib/scene';
  * The selector returns a station COUNT, so this component re-renders only when the bit
  * crosses a station (a few times a second at most), not every frame.
  */
-export function ActualLayer({ well, color }: { well: Well; color: string }) {
+export function ActualLayer({
+  well,
+  color,
+  mode = 'actual',
+}: {
+  well: Well;
+  color: string;
+  mode?: 'actual' | 'plan';
+}) {
   const reached = useDrilling((s) => stationsReached(well.actual, s.md));
 
   const curve = useMemo(() => {
@@ -19,10 +27,24 @@ export function ActualLayer({ well, color }: { well: Well; color: string }) {
   }, [well.version, reached]);
 
   if (!curve) return null;
+  const isPlanMode = mode === 'plan';
+
   return (
     <mesh name={`actual-${well.name}`}>
-      <tubeGeometry args={[curve, Math.min(1400, curve.points.length * 3), 0.42, 10, false]} />
-      <meshStandardMaterial color={color} roughness={0.45} metalness={0.1} />
+      <tubeGeometry
+        args={[
+          curve,
+          Math.min(1400, curve.points.length * 3),
+          isPlanMode ? 0.36 : 0.44,
+          10,
+          false,
+        ]}
+      />
+      {isPlanMode ? (
+        <meshBasicMaterial color={color} transparent opacity={0.25} depthWrite={false} />
+      ) : (
+        <meshStandardMaterial color={color} roughness={0.45} metalness={0.1} />
+      )}
     </mesh>
   );
 }

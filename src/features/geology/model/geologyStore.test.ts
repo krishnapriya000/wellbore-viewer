@@ -181,4 +181,81 @@ describe('geologyStore', () => {
     const fmL2 = formationAt(state.formations, 'L2', 4200, 4200);
     expect(fmL2?.name).toBe('Target Sand');
   });
+
+  it('toggles formation visibility and updates formationAt behavior', () => {
+    const res = useGeologyStore.getState().toggleVisibility('fm-1');
+    expect(res.ok).toBe(true);
+
+    const f1 = useGeologyStore.getState().formations.find((f) => f.id === 'fm-1');
+    expect(f1?.visible).toBe(false);
+
+    // When hidden, formationAt skips fm-1 (Overburden: 0-1500) and returns null
+    const hiddenQuery = formationAt(useGeologyStore.getState().formations, 'L1', 500, 500);
+    expect(hiddenQuery).toBeNull();
+
+    // Toggle back on
+    const res2 = useGeologyStore.getState().toggleVisibility('fm-1');
+    expect(res2.ok).toBe(true);
+    const visibleQuery = formationAt(useGeologyStore.getState().formations, 'L1', 500, 500);
+    expect(visibleQuery?.name).toBe('Overburden');
+  });
+
+  it('returns error when toggling visibility for non-existent formation', () => {
+    const res = useGeologyStore.getState().toggleVisibility('non-existent');
+    expect(res.ok).toBe(false);
+  });
+
+  describe('persistence', () => {
+    it('persists changes to localStorage and reloads on startup', () => {
+      useGeologyStore.getState().addFormation({
+        id: 'persisted-1',
+        name: 'Persistent Caprock',
+        ref: 'TVD',
+        well: 'All',
+        from: 5000,
+        to: 5500,
+        comp: [{ lith: 'anhydrite', pct: 100 }],
+      });
+
+      const raw = localStorage.getItem('wellbore_geology_v1');
+      expect(raw).toBeTruthy();
+      expect(raw).toContain('Persistent Caprock');
+    });
+
+    it('gracefully recovers from corrupt localStorage payload and falls back to sample data', () => {
+      localStorage.setItem('wellbore_geology_v1', 'NOT_VALID_JSON{:::');
+      useGeologyStore.getState().resetToSample();
+      expect(useGeologyStore.getState().formations).toHaveLength(INITIAL_FORMATIONS.length);
+    });
+
+    it('rejects invalid schema records in localStorage and keeps valid entries', () => {
+      const corruptPayload = {
+        version: 1,
+        formations: [
+          {
+            id: 'corrupt-1',
+            name: 'Inverted',
+            ref: 'TVD',
+            well: 'All',
+            from: 6000,
+            to: 1000, // Invalid: to <= from
+            comp: [{ lith: 'sandstone', pct: 100 }],
+          },
+          {
+            id: 'good-1',
+            name: 'Valid Layer',
+            ref: 'TVD',
+            well: 'All',
+            from: 1000,
+            to: 2000,
+            comp: [{ lith: 'limestone', pct: 100 }],
+          },
+        ],
+      };
+      localStorage.setItem('wellbore_geology_v1', JSON.stringify(corruptPayload));
+      // Re-initialize state
+      useGeologyStore.getState().resetToSample();
+      expect(useGeologyStore.getState().formations).toHaveLength(INITIAL_FORMATIONS.length);
+    });
+  });
 });

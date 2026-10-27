@@ -16,26 +16,47 @@ export interface ParsedSurvey {
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_ROWS = 200_000;
 
-export const isMd = (c: string) =>
-  /^(md|measured\s*depth|depth\s*md|measured_depth|depth_md)(\b|_|\s|\(|$)/i.test(c) ||
-  c === 'md' ||
-  c.startsWith('md ') ||
-  c.startsWith('md_') ||
-  c.startsWith('md(');
+export const isMd = (c: string) => {
+  const s = c.trim().toLowerCase();
+  if (/^(md|ah)(\b|_|\s|\(|$|\.)/i.test(s) || s === 'md' || s === 'ah') return true;
+  if (/measured\s*depth|along\s*hole/i.test(s)) return true;
+  if (/^depth(\b|_|\s|\(|$|\.)/i.test(s) && !/tvd|true\s*vertical/i.test(s)) return true;
+  return false;
+};
 
-export const isInc = (c: string) =>
-  /^(inc|inclination|incl|drift)(\b|_|\s|\(|$)/i.test(c) ||
-  c.includes('inclination') ||
-  c.includes('inc');
+export const isInc = (c: string) => {
+  const s = c.trim().toLowerCase();
+  return (
+    /^(inc|incl|inclination|dev|deviation|drift|angle|dip)(\b|_|\s|\(|$|\.)/i.test(s) ||
+    s.includes('inclination') ||
+    s.includes('inc') ||
+    s === 'dev' ||
+    s.startsWith('dev_') ||
+    s.startsWith('dev ') ||
+    s.startsWith('dev(')
+  );
+};
 
-export const isAzi = (c: string) =>
-  /^(az|azi|azimuth|azim|direction|dir)(\b|_|\s|\(|$)/i.test(c) ||
-  c.includes('azimuth') ||
-  c.includes('azi');
+export const isAzi = (c: string) => {
+  const s = c.trim().toLowerCase();
+  return (
+    /^(az|azi|azimuth|azim|direction|dir|bearing|heading)(\b|_|\s|\(|$|\.)/i.test(s) ||
+    s.includes('azimuth') ||
+    s.includes('azi') ||
+    s.includes('bearing') ||
+    s.includes('heading')
+  );
+};
 
-export const isWell = (c: string) =>
-  /^(well|well_?name|wellbore|lateral|bore|leg)(\b|_|\s|\(|$)/i.test(c) ||
-  /well|lateral|bore|leg/i.test(c);
+export const isWell = (c: string) => {
+  const s = c.trim().toLowerCase();
+  return (
+    /^(well|well_?name|wellbore|lateral|bore|leg)(\b|_|\s|\(|$|\.)/i.test(s) ||
+    s === 'well' ||
+    s === 'lateral' ||
+    s === 'wellbore'
+  );
+};
 
 /**
  * Finds the header row (first 40 rows) with MD, Inc and Azi columns, and an optional Well column.
@@ -131,6 +152,8 @@ export function parseSurveyRows(rows: readonly (readonly unknown[])[], fallbackW
   }
 
   const rawWells = new Map<string, { station: Station; row: number }[]>();
+  let currentWell = fallbackWell;
+
   for (let r = header + 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row || row.every((c) => String(c ?? '').trim() === '')) continue;
@@ -149,9 +172,9 @@ export function parseSurveyRows(rows: readonly (readonly unknown[])[], fallbackW
       continue;
     }
 
-    const mdNum = Number(rawMd);
-    const incNum = Number(rawInc);
-    const aziNum = Number(rawAzi);
+    const mdNum = typeof rawMd === 'number' ? rawMd : Number(String(rawMd).trim().replace(/,/g, ''));
+    const incNum = typeof rawInc === 'number' ? rawInc : Number(String(rawInc).trim().replace(/,/g, ''));
+    const aziNum = typeof rawAzi === 'number' ? rawAzi : Number(String(rawAzi).trim().replace(/,/g, ''));
 
     if (!Number.isFinite(mdNum) || !Number.isFinite(incNum) || !Number.isFinite(aziNum)) {
       issues.push({
@@ -171,16 +194,20 @@ export function parseSurveyRows(rows: readonly (readonly unknown[])[], fallbackW
       continue;
     }
 
-    const rawWell = cWell >= 0 ? String(row[cWell] ?? '').trim() : '';
-    const name = WellNameSchema.safeParse(rawWell || fallbackWell);
-    if (!name.success) {
-      issues.push({ row: rowNum, message: `Invalid well name "${rawWell}"` });
-      continue;
+    const rawWellCell = cWell >= 0 ? String(row[cWell] ?? '').trim() : '';
+    if (rawWellCell) {
+      const nameCheck = WellNameSchema.safeParse(rawWellCell);
+      if (!nameCheck.success) {
+        issues.push({ row: rowNum, message: `Invalid well name "${rawWellCell}"` });
+        continue;
+      }
+      currentWell = nameCheck.data;
     }
 
-    const list = rawWells.get(name.data) ?? [];
+    const assignedWell = (cWell >= 0 && rawWellCell) ? currentWell : (currentWell || fallbackWell);
+    const list = rawWells.get(assignedWell) ?? [];
     list.push({ station: parsed.data, row: rowNum });
-    rawWells.set(name.data, list);
+    rawWells.set(assignedWell, list);
   }
 
   if (!rawWells.size || Array.from(rawWells.values()).every((l) => l.length === 0)) {
@@ -279,7 +306,7 @@ export function parseSurveyWorkbook(data: ArrayBuffer | Uint8Array, fallbackWell
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, raw: true, defval: '' });
     if (!rows || rows.length === 0) continue;
 
-    const isGenericSheet = /^(sheet\d*|survey\d*|table\d*|data\d*)$/i.test(sn.trim());
+    const isGenericSheet = /^(sheet\d*|survey\d*|table\d*|data\d*|plan\d*|actual\d*)$/i.test(sn.trim());
     const sheetWell =
       !isGenericSheet && WellNameSchema.safeParse(sn.trim()).success ? sn.trim() : fallbackWell;
 

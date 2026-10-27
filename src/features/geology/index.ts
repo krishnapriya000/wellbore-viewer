@@ -5,8 +5,16 @@ export {
   dominantLithology,
   formatCompSummary,
   LITHOLOGY_COLORS,
+  LITHOLOGY_METAS,
+  LITHOLOGY_META_LIST,
   type ColorRgb,
+  type LithologyMeta,
 } from './lib/lithologyColors';
+export {
+  clearPersistedFormations,
+  loadPersistedFormations,
+  persistFormations,
+} from './lib/persistence';
 export {
   computeSleeveSegments,
   GEOLOGY_SCALE,

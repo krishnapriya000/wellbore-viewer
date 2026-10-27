@@ -8,8 +8,12 @@ export function formationAt(
   tvd: number,
 ): Formation | null {
   let hit: Formation | null = null;
-  for (const f of formations) if (f.ref === 'MD' && f.well === well && md >= f.from && md < f.to) hit = f;
+  for (const f of formations) {
+    if (f.visible !== false && f.ref === 'MD' && f.well === well && md >= f.from && md < f.to) hit = f;
+  }
   if (hit) return hit;
-  for (const f of formations) if (f.ref === 'TVD' && tvd >= f.from && tvd < f.to) hit = f;
+  for (const f of formations) {
+    if (f.visible !== false && f.ref === 'TVD' && tvd >= f.from && tvd < f.to) hit = f;
+  }
   return hit;
 }

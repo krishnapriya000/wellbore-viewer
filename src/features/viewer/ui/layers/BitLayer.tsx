@@ -46,17 +46,18 @@ export function BitLayer({ color }: { color: string }) {
   useFrame((_, dt) => {
     const drill = useDrilling.getState();
     const well = drill.activeWell ? useSurveyStore.getState().wells[drill.activeWell] : undefined;
-    if (!well || well.actual.length < 2 || !bit.current) {
+    const points = drill.mode === 'plan' ? well?.plan : well?.actual;
+    if (!well || !points || points.length < 2 || !bit.current) {
       if (bit.current) bit.current.visible = false;
       return;
     }
 
-    const td = well.actual.at(-1)!.md;
+    const td = points.at(-1)!.md;
     const next = advance(drill, dt, td);
     if (next.md !== drill.md || next.playing !== drill.playing) {
       const events = useEventsStore.getState().events;
       const unit = useSettings.getState().unit;
-      const crossings = detectCrossings(well.actual, events, well.name, drill.md, next.md, unit);
+      const crossings = detectCrossings(points, events, well.name, drill.md, next.md, unit);
       useDrilling.setState({ md: next.md, playing: next.playing });
       if (crossings.length) {
         drill.pushFeed(crossings);
@@ -64,7 +65,7 @@ export function BitLayer({ color }: { color: string }) {
     }
 
     const md = useDrilling.getState().md;
-    const tip = atMd(well.actual, md)!;
+    const tip = atMd(points, md)!;
     bit.current.visible = true;
     bit.current.position.copy(toScene(tip, tmp));
 
@@ -73,9 +74,9 @@ export function BitLayer({ color }: { color: string }) {
     bit.current.scale.setScalar(next.playing ? 1 + 0.18 * Math.sin(elapsed * 6) : 1);
 
     // Segment from the last passed station to the bit, along the true arc.
-    const i = stationsReached(well.actual, md);
-    const from = well.actual[Math.max(0, i - 1)]!;
-    const to = well.actual[Math.min(i, well.actual.length - 1)]!;
+    const i = stationsReached(points, md);
+    const from = points[Math.max(0, i - 1)]!;
+    const to = points[Math.min(i, points.length - 1)]!;
     const span = to.md - from.md;
     const attr = tipObject.geometry.getAttribute('position') as BufferAttribute;
     for (let k = 0; k < TIP_SAMPLES; k++) {

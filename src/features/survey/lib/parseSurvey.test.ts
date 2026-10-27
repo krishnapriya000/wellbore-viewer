@@ -40,6 +40,47 @@ describe('parseSurveyText', () => {
     const csv3 = 'MD_ft,Inc_deg,Azi_deg\n0,0,45\n100,2,45';
     const res3 = parseSurveyText(csv3, 'L3');
     expect(res3.wells.has('L3')).toBe(true);
+
+    const csv4 = 'Depth,Dev,Bearing\n0,0,45\n500,3,90';
+    const res4 = parseSurveyText(csv4, 'L1');
+    expect(res4.wells.get('L1')).toHaveLength(2);
+
+    const csv5 = 'AH,Angle,Heading\n0,0,180\n200,4,185';
+    const res5 = parseSurveyText(csv5, 'L2');
+    expect(res5.wells.get('L2')).toHaveLength(2);
+  });
+
+  it('parses comma-formatted numbers above 1000 ft without dropping rows', () => {
+    const csv = [
+      'Well,MD,Inc,Azi',
+      'L1,"1,000.0",1.50,45.00',
+      'L1,"1,250.5",2.00,45.00',
+      'L1,"12,500.0",90.00,45.00',
+    ].join('\n');
+    const { wells, issues } = parseSurveyText(csv, 'fallback');
+    expect(wells.has('L1')).toBe(true);
+    // Notice surface tie-in is added at md=0 because survey starts at 1,000 ft
+    expect(wells.get('L1')).toHaveLength(4);
+    expect(wells.get('L1')![1]!.md).toBe(1000);
+    expect(wells.get('L1')![2]!.md).toBe(1250.5);
+    expect(wells.get('L1')![3]!.md).toBe(12500);
+    expect(issues).toEqual([]);
+  });
+
+  it('propagates the well name across continuation rows with sparse well cells', () => {
+    const csv = [
+      'Well,MD,Inc,Azi',
+      'L1,0,0,45',
+      ',100,1,45',
+      ',200,2,45',
+      'L2,0,0,160',
+      ',100,1.5,160',
+    ].join('\n');
+    const { wells, issues } = parseSurveyText(csv, 'fallback');
+    expect([...wells.keys()].sort()).toEqual(['L1', 'L2']);
+    expect(wells.get('L1')).toHaveLength(3);
+    expect(wells.get('L2')).toHaveLength(2);
+    expect(issues).toEqual([]);
   });
 
   it('supports L1, L2, and L3 multi-lateral rows in a single file', () => {
@@ -154,6 +195,22 @@ describe('parseSurveyWorkbook (XLSX)', () => {
     expect(wells.get('L1')).toHaveLength(2);
     expect(wells.get('L2')).toHaveLength(2);
     expect(wells.get('L3')).toHaveLength(2);
+  });
+
+  it('treats sheets named Plan or Actual as generic sheets and applies fallback well', () => {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['MD', 'Inc', 'Azi'],
+      [0, 0, 45],
+      [100, 2, 45],
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, 'Plan');
+    const ab = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer;
+
+    const { wells } = parseSurveyWorkbook(ab, 'L1');
+    expect(wells.has('L1')).toBe(true);
+    expect(wells.has('Plan')).toBe(false);
+    expect(wells.get('L1')).toHaveLength(2);
   });
 
   it('throws an error for empty or sheetless Excel buffers', () => {

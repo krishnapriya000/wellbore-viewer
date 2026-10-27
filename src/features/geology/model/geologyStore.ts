@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import { clearPersistedFormations, loadPersistedFormations, persistFormations } from '../lib/persistence';
 import { FormationSchema, type Formation } from './types';
 
 export const INITIAL_FORMATIONS: Formation[] = [
@@ -14,6 +15,7 @@ export const INITIAL_FORMATIONS: Formation[] = [
       { lith: 'shale', pct: 70 },
       { lith: 'sandstone', pct: 30 },
     ],
+    visible: true,
   },
   {
     id: 'fm-2',
@@ -23,6 +25,7 @@ export const INITIAL_FORMATIONS: Formation[] = [
     from: 1500,
     to: 3500,
     comp: [{ lith: 'shale', pct: 100 }],
+    visible: true,
   },
   {
     id: 'fm-3',
@@ -35,6 +38,7 @@ export const INITIAL_FORMATIONS: Formation[] = [
       { lith: 'sandstone', pct: 85 },
       { lith: 'siltstone', pct: 15 },
     ],
+    visible: true,
   },
   {
     id: 'fm-4',
@@ -47,6 +51,7 @@ export const INITIAL_FORMATIONS: Formation[] = [
       { lith: 'limestone', pct: 60 },
       { lith: 'dolomite', pct: 40 },
     ],
+    visible: true,
   },
   {
     id: 'fm-5',
@@ -56,6 +61,7 @@ export const INITIAL_FORMATIONS: Formation[] = [
     from: 4100,
     to: 4300,
     comp: [{ lith: 'sandstone', pct: 100 }],
+    visible: true,
   },
 ];
 
@@ -69,7 +75,7 @@ function generateId(): string {
 
 export interface GeologyState {
   formations: Formation[];
-  /** Incremented on every modification. Future 3D layers rebuild geometry only on version change. */
+  /** Incremented on every modification. 3D layers and strip log rebuild geometry on version change. */
   version: number;
   addFormation: (input: unknown) => { ok: true; formation: Formation } | { ok: false; error: string };
   updateFormation: (
@@ -78,12 +84,13 @@ export interface GeologyState {
   ) => { ok: true; formation: Formation } | { ok: false; error: string };
   removeFormation: (id: string) => { ok: true } | { ok: false; error: string };
   setFormations: (list: unknown[]) => { ok: true } | { ok: false; error: string };
+  toggleVisibility: (id: string) => { ok: true } | { ok: false; error: string };
   resetToSample: () => void;
 }
 
 export const useGeologyStore = create<GeologyState>()(
   subscribeWithSelector((set, get) => ({
-    formations: INITIAL_FORMATIONS,
+    formations: loadPersistedFormations(INITIAL_FORMATIONS),
     version: 0,
 
     addFormation(input) {
@@ -100,8 +107,10 @@ export const useGeologyStore = create<GeologyState>()(
       if (existing.some((f) => f.id === parsed.data.id)) {
         return { ok: false, error: `Formation with ID "${parsed.data.id}" already exists` };
       }
+      const next = [...existing, parsed.data];
+      persistFormations(next);
       set((s) => ({
-        formations: [...s.formations, parsed.data],
+        formations: next,
         version: s.version + 1,
       }));
       return { ok: true, formation: parsed.data };
@@ -118,8 +127,10 @@ export const useGeologyStore = create<GeologyState>()(
       if (!parsed.success) {
         return { ok: false, error: parsed.error.issues[0]?.message ?? 'Invalid formation data' };
       }
+      const next = existing.map((f) => (f.id === id ? parsed.data : f));
+      persistFormations(next);
       set((s) => ({
-        formations: s.formations.map((f) => (f.id === id ? parsed.data : f)),
+        formations: next,
         version: s.version + 1,
       }));
       return { ok: true, formation: parsed.data };
@@ -130,8 +141,10 @@ export const useGeologyStore = create<GeologyState>()(
       if (!existing.some((f) => f.id === id)) {
         return { ok: false, error: `Formation with ID "${id}" not found` };
       }
+      const next = existing.filter((f) => f.id !== id);
+      persistFormations(next);
       set((s) => ({
-        formations: s.formations.filter((f) => f.id !== id),
+        formations: next,
         version: s.version + 1,
       }));
       return { ok: true };
@@ -150,6 +163,7 @@ export const useGeologyStore = create<GeologyState>()(
         }
         parsedList.push(parsed.data);
       }
+      persistFormations(parsedList);
       set((s) => ({
         formations: parsedList,
         version: s.version + 1,
@@ -157,7 +171,23 @@ export const useGeologyStore = create<GeologyState>()(
       return { ok: true };
     },
 
+    toggleVisibility(id) {
+      const existing = get().formations;
+      if (!existing.some((f) => f.id === id)) {
+        return { ok: false, error: `Formation with ID "${id}" not found` };
+      }
+      const next = existing.map((f) => (f.id === id ? { ...f, visible: f.visible === false } : f));
+      persistFormations(next);
+      set((s) => ({
+        formations: next,
+        version: s.version + 1,
+      }));
+      return { ok: true };
+    },
+
     resetToSample() {
+      clearPersistedFormations();
+      persistFormations(INITIAL_FORMATIONS);
       set((s) => ({
         formations: INITIAL_FORMATIONS,
         version: s.version + 1,

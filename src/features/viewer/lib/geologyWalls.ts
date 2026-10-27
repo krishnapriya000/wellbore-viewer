@@ -84,7 +84,7 @@ export function computeGeologyWalls(
   const mdOverrides: MdOverrideDescriptor[] = [];
 
   for (const f of formations) {
-    if (f.from >= f.to) continue; // Skip invalid intervals
+    if (f.visible === false || f.from >= f.to) continue; // Skip hidden or invalid intervals
 
     const color = blendLithologyColor(f.comp);
     const compSummary = formatCompSummary(f);

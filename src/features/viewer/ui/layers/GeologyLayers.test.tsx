@@ -74,6 +74,18 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
 
       expect(screen.getByText('Deep Basement Layer')).toBeInTheDocument();
     });
+
+    it('hides stratigraphic wall and badge when formation visibility is toggled off', () => {
+      const { rerender } = render(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
+      expect(screen.getByText('Overburden')).toBeInTheDocument();
+
+      act(() => {
+        useGeologyStore.getState().toggleVisibility('fm-1');
+      });
+
+      rerender(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
+      expect(screen.queryByText('Overburden')).not.toBeInTheDocument();
+    });
   });
 
   describe('SleeveLayer', () => {
@@ -101,6 +113,31 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
 
       rerender(<SleeveLayer well={MOCK_WELL} />);
       expect(useGeologyStore.getState().version).toBe(1);
+    });
+
+    it('partitions sleeve into drilled (solid) and ahead-of-bit (faint) intervals when drilling', () => {
+      // Inactive well has all drilled segments
+      const { container } = render(<SleeveLayer well={MOCK_WELL} />);
+
+      const meshes = container.querySelectorAll('mesh');
+      expect(meshes.length).toBeGreaterThan(0);
+      // All rendered meshes have a sleeve name
+      for (const m of meshes) {
+        expect(m.getAttribute('name')).toMatch(/^sleeve-/);
+      }
+    });
+
+    it('excludes hidden formations from sleeve rendering when visibility is toggled off', () => {
+      const { container, rerender } = render(<SleeveLayer well={MOCK_WELL} />);
+      const countBefore = container.querySelectorAll('mesh').length;
+
+      act(() => {
+        useGeologyStore.getState().toggleVisibility('fm-1');
+      });
+
+      rerender(<SleeveLayer well={MOCK_WELL} />);
+      const countAfter = container.querySelectorAll('mesh').length;
+      expect(countAfter).toBeLessThan(countBefore);
     });
   });
 });

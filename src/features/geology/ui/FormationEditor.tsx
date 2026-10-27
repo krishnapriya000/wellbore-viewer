@@ -3,6 +3,7 @@ import { useSurveyStore } from '@/features/survey';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import { useUnits } from '@/shared/units/useUnits';
+import { LITHOLOGY_META_LIST } from '../lib/lithologyColors';
 import { useGeologyStore } from '../model/geologyStore';
 import {
   FormationSchema,
@@ -24,6 +25,7 @@ export function FormationEditor() {
   const updateFormation = useGeologyStore((s) => s.updateFormation);
   const removeFormation = useGeologyStore((s) => s.removeFormation);
   const resetToSample = useGeologyStore((s) => s.resetToSample);
+  const toggleVisibility = useGeologyStore((s) => s.toggleVisibility);
 
   const wells = useSurveyStore((s) => s.order);
   const units = useUnits();
@@ -39,6 +41,9 @@ export function FormationEditor() {
   const [fromStr, setFromStr] = useState('');
   const [toStr, setToStr] = useState('');
   const [comp, setComp] = useState<CompRow[]>(DEFAULT_COMP);
+
+  // Toggle display of USGS lithology legend
+  const [showLegend, setShowLegend] = useState(false);
 
   // Inline delete confirmation state
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -110,7 +115,7 @@ export function FormationEditor() {
     const fromNum = Number(fromStr);
     const toNum = Number(toStr);
 
-    if (isNaN(fromNum) || isNaN(toNum)) {
+    if (fromStr.trim() === '' || toStr.trim() === '' || isNaN(fromNum) || isNaN(toNum)) {
       setMsg({ kind: 'err', text: 'From and To depths must be valid numbers.' });
       return;
     }
@@ -167,19 +172,52 @@ export function FormationEditor() {
 
   return (
     <section className="block" aria-labelledby={`${formId}-title`}>
-      <h2 id={`${formId}-title`}>
-        Formations & Lithology <span className="pill idle">{formations.length}</span>
-      </h2>
+      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2 id={`${formId}-title`} style={{ margin: 0 }}>
+          Formations & Lithology <span className="pill idle">{formations.length}</span>
+        </h2>
+        <span className="pill warn" title="Synthetic stratigraphy for demonstration purposes">
+          DEMO / SAMPLE GEOLOGY
+        </span>
+      </div>
+      <p className="hint" style={{ fontSize: '0.74rem', margin: '4px 0 10px 0', color: 'var(--muted)' }}>
+        Sample stratigraphy loaded for visualization. Use the editor below to configure actual well tops and lithology.
+      </p>
 
       {/* 1. Existing formations list */}
       <div className="formation-list" role="region" aria-label="Formation layers">
         {formations.length === 0 ? (
-          <p className="hint">No formations defined.</p>
+          <p className="hint">No formations defined. Click &quot;Reset Sample Formations&quot; below or add a new formation.</p>
         ) : (
           formations.map((f) => (
-            <div key={f.id} className="formation-item">
+            <div
+              key={f.id}
+              className="formation-item"
+              style={{
+                opacity: f.visible === false ? 0.55 : 1,
+                transition: 'opacity 0.15s ease',
+              }}
+            >
               <div className="formation-header">
-                <strong>{f.name}</strong>
+                <div className="row" style={{ alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className={`btn small ${f.visible === false ? 'dimmed' : ''}`}
+                    onClick={() => toggleVisibility(f.id)}
+                    aria-label={f.visible === false ? `Show ${f.name}` : `Hide ${f.name}`}
+                    aria-pressed={f.visible !== false}
+                    title={f.visible === false ? 'Show formation in 3D & strip log' : 'Hide formation in 3D & strip log'}
+                    style={{ padding: '1px 6px', fontSize: '0.72rem' }}
+                  >
+                    {f.visible === false ? '👁 Off' : '👁 On'}
+                  </button>
+                  <strong>{f.name}</strong>
+                  {f.visible === false && (
+                    <span className="pill idle" style={{ fontSize: '0.62rem' }}>
+                      Hidden
+                    </span>
+                  )}
+                </div>
                 <span className={`pill ${f.ref === 'TVD' ? 'ok' : 'warn'}`}>
                   {f.ref} · {f.well}
                 </span>
@@ -234,6 +272,76 @@ export function FormationEditor() {
               </Authorized>
             </div>
           ))
+        )}
+      </div>
+
+      {/* 2. Collapsible USGS Lithology Pattern Legend (12 Types) */}
+      <div style={{ marginTop: '10px', marginBottom: '10px' }}>
+        <button
+          type="button"
+          className="btn small"
+          onClick={() => setShowLegend((v) => !v)}
+          aria-expanded={showLegend}
+          aria-controls={`${formId}-legend`}
+          style={{
+            fontSize: '0.75rem',
+            width: '100%',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>{showLegend ? '▼ Hide Lithology Legend' : '▶ Show USGS Lithology Legend (12 Types)'}</span>
+          <span className="pill idle" style={{ fontSize: '0.65rem' }}>12 Standard Patterns</span>
+        </button>
+        {showLegend && (
+          <div
+            id={`${formId}-legend`}
+            role="region"
+            aria-label="USGS Lithology Patterns Legend"
+            style={{
+              marginTop: '6px',
+              padding: '8px',
+              background: 'var(--surface-sunken, rgba(0,0,0,0.15))',
+              border: '1px solid var(--line)',
+              borderRadius: '6px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+              gap: '6px',
+            }}
+          >
+            {LITHOLOGY_META_LIST.map((meta) => (
+              <div
+                key={meta.lith}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.72rem',
+                  padding: '4px 6px',
+                  borderRadius: '4px',
+                  background: 'var(--surface)',
+                  border: '1px solid var(--line)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '14px',
+                    height: '14px',
+                    borderRadius: '3px',
+                    background: meta.color.hex,
+                    border: '1px solid rgba(0,0,0,0.25)',
+                    flexShrink: 0,
+                  }}
+                  aria-hidden="true"
+                />
+                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
+                  <strong style={{ textTransform: 'capitalize' }}>{meta.name}</strong>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.64rem' }}>{meta.patternName}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

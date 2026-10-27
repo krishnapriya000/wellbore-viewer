@@ -13,9 +13,27 @@ export function SurveyTable({
   bitStore,
 }: {
   well: string | null;
-  bitStore: UseBoundStore<StoreApi<{ md: number }>>;
+  bitStore: UseBoundStore<
+    StoreApi<{
+      md: number;
+      mode?: 'actual' | 'plan';
+      setMode?: (mode: 'actual' | 'plan') => void;
+    }>
+  >;
 }) {
-  const [mode, setMode] = useState<'actual' | 'plan'>('actual');
+  const storeMode = bitStore((s) => s.mode);
+  const [localMode, setLocalMode] = useState<'actual' | 'plan'>('actual');
+  const mode = storeMode ?? localMode;
+
+  const setMode = (next: 'actual' | 'plan') => {
+    const fn = bitStore.getState().setMode;
+    if (fn) {
+      fn(next);
+    } else {
+      setLocalMode(next);
+    }
+  };
+
   const w = useSurveyStore((s) => (well ? s.wells[well] : undefined));
   const md = useThrottledStore(bitStore, (s) => s.md, 250);
   const units = useUnits();
@@ -53,19 +71,27 @@ export function SurveyTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((s, i) => (
-              <tr key={s.md} className={mode === 'actual' && i === 0 ? 'new' : undefined}>
-                <td>{units.depthValue(s.md)}</td>
-                <td>{formatNumber(s.inc, 2)}</td>
-                <td>{formatNumber(s.azi, 2)}</td>
-                <td>{units.depthValue(s.tvd)}</td>
-                <td>{units.depthValue(s.n)}</td>
-                <td>{units.depthValue(s.e)}</td>
-                <td className={s.dls > 3.0001 ? 'hot' : undefined}>
-                  {formatNumber(dlsToDisplay(s.dls, units.unit), 2)}
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', opacity: 0.7, padding: '16px' }}>
+                  No {mode} surveys for {well ?? 'this wellbore'}.
                 </td>
               </tr>
-            ))}
+            ) : (
+              rows.map((s, i) => (
+                <tr key={s.md} className={mode === 'actual' && i === 0 ? 'new' : undefined}>
+                  <td>{units.depthValue(s.md)}</td>
+                  <td>{formatNumber(s.inc, 2)}</td>
+                  <td>{formatNumber(s.azi, 2)}</td>
+                  <td>{units.depthValue(s.tvd)}</td>
+                  <td>{units.depthValue(s.n)}</td>
+                  <td>{units.depthValue(s.e)}</td>
+                  <td className={s.dls > 3.0001 ? 'hot' : undefined}>
+                    {formatNumber(dlsToDisplay(s.dls, units.unit), 2)}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

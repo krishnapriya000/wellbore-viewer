@@ -148,7 +148,7 @@ function drawLithologyHatch(
       break;
     }
     case 'conglomerate': {
-      // Pebble / circle shapes
+      // Pebble / circle shapes (USGS 607)
       const spacing = 14;
       for (let px = x + 7; px < x + w; px += spacing) {
         for (let py = y + 7; py < y + h; py += spacing) {
@@ -159,8 +159,75 @@ function drawLithologyHatch(
       }
       break;
     }
+    case 'marl': {
+      // Alternating dashed shale lines with vertical tick marks (calcareous shale / marl - USGS 628)
+      const stepY = 9;
+      for (let py = y + 4; py < y + h; py += stepY) {
+        ctx.beginPath();
+        ctx.setLineDash([7, 5]);
+        ctx.moveTo(x, py);
+        ctx.lineTo(x + w, py);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.setLineDash([]);
+        for (let px = x + 6; px < x + w; px += 16) {
+          ctx.moveTo(px, py - 3);
+          ctx.lineTo(px, py + 3);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'salt': {
+      // Isometric halite cross/plus lattice grid (USGS 664)
+      const spacing = 12;
+      for (let px = x + 6; px < x + w; px += spacing) {
+        for (let py = y + 6; py < y + h; py += spacing) {
+          ctx.beginPath();
+          ctx.setLineDash([]);
+          ctx.moveTo(px - 3, py);
+          ctx.lineTo(px + 3, py);
+          ctx.moveTo(px, py - 3);
+          ctx.lineTo(px, py + 3);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'chert': {
+      // Sharp angular wedge/arrowhead triangles (USGS 657)
+      const spacing = 16;
+      for (let px = x + 8; px < x + w; px += spacing) {
+        for (let py = y + 8; py < y + h; py += spacing) {
+          ctx.beginPath();
+          ctx.setLineDash([]);
+          ctx.moveTo(px - 4, py + 3);
+          ctx.lineTo(px, py - 4);
+          ctx.lineTo(px + 4, py + 3);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
+      break;
+    }
+    case 'basement': {
+      // Crystalline interlocking chevrons / herringbone 'v' ticks (USGS 701)
+      const spacing = 14;
+      for (let px = x + 7; px < x + w; px += spacing) {
+        for (let py = y + 7; py < y + h; py += spacing) {
+          ctx.beginPath();
+          ctx.setLineDash([]);
+          ctx.moveTo(px - 3, py - 3);
+          ctx.lineTo(px, py + 2);
+          ctx.lineTo(px + 3, py - 3);
+          ctx.stroke();
+        }
+      }
+      break;
+    }
     default: {
-      // Default subtle crosshatch
+      // Fallback subtle diagonal crosshatch
       const step = 14;
       for (let px = x - h; px < x + w; px += step) {
         ctx.beginPath();

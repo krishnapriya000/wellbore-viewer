@@ -109,8 +109,9 @@ export function computeSleeveSegments(
     mdSet.add(md);
   }
 
-  // Boundary crossings for all formations
-  for (const f of formations) {
+  // Boundary crossings for visible formations
+  const activeFormations = formations.filter((f) => f.visible !== false);
+  for (const f of activeFormations) {
     if (f.ref === 'MD' && f.well === wellName) {
       if (f.from > minMd && f.from < maxMd) mdSet.add(f.from);
       if (f.to > minMd && f.to < maxMd) mdSet.add(f.to);

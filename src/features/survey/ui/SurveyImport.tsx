@@ -2,11 +2,20 @@ import { useId, useState, type FormEvent } from 'react';
 import { Authorized } from '@/shared/auth';
 import { useUnits } from '@/shared/units/useUnits';
 import { parseSurveyFile } from '../lib/parseFile';
+import type { Station } from '../lib/types';
 import { useSurveyStore } from '../model/surveyStore';
 
 type Msg = { kind: 'ok' | 'err'; text: string } | null;
 
-export function SurveyImport({ activeWell }: { activeWell: string | null }) {
+export function SurveyImport({
+  activeWell,
+  onLoaded,
+  onLoadSample,
+}: {
+  activeWell: string | null;
+  onLoaded?: (kind: 'plan' | 'actual', wells: Map<string, Station[]>) => void;
+  onLoadSample?: () => void | Promise<void>;
+}) {
   const setPlan = useSurveyStore((s) => s.setPlan);
   const setActual = useSurveyStore((s) => s.setActual);
   const addLiveStation = useSurveyStore((s) => s.addLiveStation);
@@ -18,14 +27,38 @@ export function SurveyImport({ activeWell }: { activeWell: string | null }) {
   async function onFile(kind: 'plan' | 'actual', file: File | undefined) {
     if (!file) return;
     try {
-      const { wells, issues } = await parseSurveyFile(file, activeWell ?? 'Well-1');
+      const fallback = activeWell || 'L1';
+      const { wells, issues } = await parseSurveyFile(file, fallback);
       (kind === 'plan' ? setPlan : setActual)(wells);
+      onLoaded?.(kind, wells);
       const skipped = issues.length
-        ? ` ${issues.length} row(s) skipped — first: row ${issues[0]!.row}, ${issues[0]!.message}.`
+        ? ` (${issues.length} row(s) skipped — first: row ${issues[0]!.row}, ${issues[0]!.message})`
         : '';
+      const wellNames = [...wells.keys()].join(', ');
+      const totalStations = [...wells.values()].reduce((sum, s) => sum + s.length, 0);
+      const text =
+        kind === 'actual'
+          ? `Actual loaded: ${wellNames} (${totalStations} stations); streaming from surface.${skipped}`
+          : `Plan loaded: ${wellNames} (${totalStations} stations).${skipped}`;
       setMsg({
         kind: issues.length ? 'err' : 'ok',
-        text: `${kind === 'plan' ? 'Plan' : 'Actual'} loaded: ${[...wells.keys()].join(', ')}.${skipped}`,
+        text,
+      });
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async function handleLoadSample() {
+    try {
+      if (onLoadSample) {
+        await onLoadSample();
+      } else {
+        await loadSample();
+      }
+      setMsg({
+        kind: 'ok',
+        text: 'Sample plan and actual loaded; streaming from surface.',
       });
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : String(e) });
@@ -85,7 +118,7 @@ export function SurveyImport({ activeWell }: { activeWell: string | null }) {
               }}
             />
           </label>
-          <button type="button" className="btn" onClick={() => void loadSample()}>
+          <button type="button" className="btn" onClick={() => void handleLoadSample()}>
             Load sample data
           </button>
         </div>

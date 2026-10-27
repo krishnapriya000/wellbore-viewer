@@ -23,7 +23,7 @@ export async function parseSurveyFile(file: File, fallbackWell: string): Promise
   const isCsv = /\.(csv|txt|tsv)$/i.test(name);
   const isXlsx = /\.(xlsx|xls)$/i.test(name);
   if (!isCsv && !isXlsx) {
-    throw new Error(`Unsupported file format "${file.name}". Please upload a .csv, .tsv, .txt, or .xlsx file.`);
+    throw new Error(`Unsupported file format "${file.name}". Please upload a .csv, .tsv, .txt, .xls, or .xlsx file.`);
   }
 
   if (typeof Worker !== 'undefined') {

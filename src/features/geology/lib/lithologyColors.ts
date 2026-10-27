@@ -84,3 +84,101 @@ export function dominantLithology(comp: readonly { lith: Lithology; pct: number 
 export function formatCompSummary(formation: Pick<Formation, 'comp'>): string {
   return formation.comp.map((c) => `${c.lith} ${Math.round(c.pct)}%`).join(', ');
 }
+
+export interface LithologyMeta {
+  lith: Lithology;
+  name: string;
+  color: ColorRgb;
+  patternName: string;
+  patternDescription: string;
+}
+
+export const LITHOLOGY_METAS: Record<Lithology, LithologyMeta> = {
+  sandstone: {
+    lith: 'sandstone',
+    name: 'Sandstone',
+    color: LITHOLOGY_COLORS.sandstone,
+    patternName: 'Stippled Dots',
+    patternDescription: 'Uniform granular dot stippling representing clastic sand grains',
+  },
+  shale: {
+    lith: 'shale',
+    name: 'Shale',
+    color: LITHOLOGY_COLORS.shale,
+    patternName: 'Horizontal Dashes',
+    patternDescription: 'Parallel horizontal dashed lamination representing clay bedding',
+  },
+  siltstone: {
+    lith: 'siltstone',
+    name: 'Siltstone',
+    color: LITHOLOGY_COLORS.siltstone,
+    patternName: 'Dotted Dashes',
+    patternDescription: 'Alternating micro-dots and short dashes',
+  },
+  limestone: {
+    lith: 'limestone',
+    name: 'Limestone',
+    color: LITHOLOGY_COLORS.limestone,
+    patternName: 'Brick Pattern',
+    patternDescription: 'Standard masonry staggered brick blocks',
+  },
+  dolomite: {
+    lith: 'dolomite',
+    name: 'Dolomite',
+    color: LITHOLOGY_COLORS.dolomite,
+    patternName: 'Slanted Bricks',
+    patternDescription: 'Diagonally inclined rhombohedral brick blocks',
+  },
+  marl: {
+    lith: 'marl',
+    name: 'Marl',
+    color: LITHOLOGY_COLORS.marl,
+    patternName: 'Dash & Tick Marks',
+    patternDescription: 'Horizontal shale bedding dashes interrupted by calcareous vertical ticks',
+  },
+  coal: {
+    lith: 'coal',
+    name: 'Coal',
+    color: LITHOLOGY_COLORS.coal,
+    patternName: 'Dense Solid Bands',
+    patternDescription: 'Closely-spaced solid horizontal carbonaceous seams',
+  },
+  anhydrite: {
+    lith: 'anhydrite',
+    name: 'Anhydrite',
+    color: LITHOLOGY_COLORS.anhydrite,
+    patternName: 'Diagonal Hatch',
+    patternDescription: 'Evenly-spaced 45° diagonal crystalline hatching',
+  },
+  salt: {
+    lith: 'salt',
+    name: 'Salt (Halite)',
+    color: LITHOLOGY_COLORS.salt,
+    patternName: 'Isometric Crosses',
+    patternDescription: 'Interlocking cubic plus / cross grid representing halite crystal lattice',
+  },
+  conglomerate: {
+    lith: 'conglomerate',
+    name: 'Conglomerate',
+    color: LITHOLOGY_COLORS.conglomerate,
+    patternName: 'Pebble Clasts',
+    patternDescription: 'Scattered coarse gravel and elliptical pebble clasts',
+  },
+  chert: {
+    lith: 'chert',
+    name: 'Chert',
+    color: LITHOLOGY_COLORS.chert,
+    patternName: 'Angular Wedges',
+    patternDescription: 'Sharp siliceous conchoidal triangles and fracture wedges',
+  },
+  basement: {
+    lith: 'basement',
+    name: 'Basement',
+    color: LITHOLOGY_COLORS.basement,
+    patternName: 'Crystalline Chevrons',
+    patternDescription: 'Interlocking angled igneous/metamorphic v-shaped herringbone ticks',
+  },
+};
+
+export const LITHOLOGY_META_LIST: LithologyMeta[] = Object.values(LITHOLOGY_METAS);
+

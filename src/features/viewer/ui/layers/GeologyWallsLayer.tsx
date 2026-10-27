@@ -1,5 +1,5 @@
 import { Html } from '@react-three/drei';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { BoxGeometry, EdgesGeometry, type Box3 } from 'three';
 import { useGeologyStore } from '@/features/geology';
 import type { Well } from '@/features/survey';
@@ -14,6 +14,12 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
     box.dispose();
     return edgeGeo;
   }, [wall.size]);
+
+  useEffect(() => {
+    return () => {
+      edges.dispose();
+    };
+  }, [edges]);
 
   return (
     <group name={`tvd-wall-${wall.name}`}>

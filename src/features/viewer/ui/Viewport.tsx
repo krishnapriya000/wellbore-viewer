@@ -21,6 +21,7 @@ import { useSceneColors } from './useSceneColors';
 export function Viewport() {
   const wells = useSurveyStore(useShallow((s) => s.order.map((n) => s.wells[n]!)));
   const activeWell = useDrilling((s) => s.activeWell);
+  const mode = useDrilling((s) => s.mode);
   const [view, setView] = useState<CameraView>('3d');
   const [autoRotate, setAutoRotate] = useState(false);
   const colors = useSceneColors();
@@ -52,9 +53,22 @@ export function Viewport() {
         ))}
         <CasingLayer />
         {wells.map((w) => (
-          <PlanLayer key={w.name} well={w} color={colors.wells[w.slot] ?? colors.label} />
+          <PlanLayer
+            key={w.name}
+            well={w}
+            color={colors.wells[w.slot] ?? colors.label}
+            mode={mode}
+            isActiveWell={w.name === activeWell}
+          />
         ))}
-        {active && <ActualLayer key={active.name} well={active} color={colors.actual} />}
+        {active && (
+          <ActualLayer
+            key={active.name}
+            well={active}
+            color={colors.actual}
+            mode={mode}
+          />
+        )}
         <BitLayer color={colors.actual} />
         <EventMarkersLayer />
         <ScaleLayer

@@ -11,11 +11,12 @@ export function DrillControls() {
   const order = useSurveyStore((s) => s.order);
   const wells = useSurveyStore((s) => s.wells);
   // Select fields explicitly: subscribing to the whole store would re-render on every frame as `md` changes.
-  const { activeWell, playing, speedFtPerS, setActiveWell, setPlaying, setSpeed, restart } = useDrilling(
+  const { activeWell, playing, speedFtPerS, mode, setActiveWell, setPlaying, setSpeed, restart } = useDrilling(
     useShallow((s) => ({
       activeWell: s.activeWell,
       playing: s.playing,
       speedFtPerS: s.speedFtPerS,
+      mode: s.mode,
       setActiveWell: s.setActiveWell,
       setPlaying: s.setPlaying,
       setSpeed: s.setSpeed,
@@ -24,9 +25,19 @@ export function DrillControls() {
   );
   const md = useThrottledStore(useDrilling, (s) => s.md, 200);
   const units = useUnits();
-  const td = activeWell ? (wells[activeWell]?.actual.at(-1)?.md ?? 0) : 0;
+  const well = activeWell ? wells[activeWell] : undefined;
+  const targetPoints = mode === 'plan' ? well?.plan : well?.actual;
+  const td = targetPoints?.at(-1)?.md ?? 0;
   const done = td > 0 && md >= td - 1e-6;
-  const status = !td ? 'No actual' : done ? 'TD reached' : playing ? 'Drilling' : 'Paused';
+  const status = !td
+    ? mode === 'plan'
+      ? 'No plan'
+      : 'No actual'
+    : done
+      ? 'TD reached'
+      : playing
+        ? 'Drilling'
+        : 'Paused';
 
   return (
     <section className="block">
@@ -78,7 +89,11 @@ export function DrillControls() {
         <i style={{ width: td ? `${(100 * md) / td}%` : 0 }} />
       </div>
       <p className="hint mono">
-        {td ? `${units.depth(md, 0)} / ${units.depth(td, 0)}` : 'Load an actual survey to start drilling.'}
+        {td
+          ? `${units.depth(md, 0)} / ${units.depth(td, 0)}`
+          : mode === 'plan'
+            ? 'Load a plan survey to inspect planned trajectory.'
+            : 'Load an actual survey to start drilling.'}
       </p>
     </section>
   );

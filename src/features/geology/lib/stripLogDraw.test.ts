@@ -51,6 +51,7 @@ function createMockContext(): CanvasRenderingContext2D {
     lineTo: vi.fn(),
     arc: vi.fn(),
     ellipse: vi.fn(),
+    closePath: vi.fn(),
     setLineDash: vi.fn(),
     measureText: vi.fn().mockReturnValue({ width: 50 }),
   } as unknown as CanvasRenderingContext2D;
@@ -110,5 +111,53 @@ describe('drawStripLog', () => {
       expect.any(Number),
       expect.any(Number),
     );
+  });
+
+  it('draws all 12 USGS lithology hatch patterns without errors', () => {
+    const allLithologies = [
+      'sandstone',
+      'shale',
+      'limestone',
+      'dolomite',
+      'siltstone',
+      'coal',
+      'anhydrite',
+      'salt',
+      'conglomerate',
+      'marl',
+      'chert',
+      'basement',
+    ] as const;
+
+    const intervals: StripLogInterval[] = allLithologies.map((lith, idx) => ({
+      id: `fm-${idx}`,
+      name: `Layer ${lith}`,
+      ref: 'TVD',
+      well: 'All',
+      fromFt: idx * 500,
+      toFt: (idx + 1) * 500,
+      thicknessFt: 500,
+      color: { hex: '#888888', r: 0.5, g: 0.5, b: 0.5 },
+      comp: [{ lith, pct: 100 }],
+      compSummary: `${lith} 100%`,
+      isOverride: false,
+    }));
+
+    const ctx = createMockContext();
+    const options: StripLogDrawOptions = {
+      width: 500,
+      height: 600,
+      dpr: 1,
+      intervals,
+      ticks: [{ depthFt: 0, depthDisplay: 0, label: '0' }],
+      minDepthFt: 0,
+      maxDepthFt: 6000,
+      unit: 'ft',
+      theme: 'dark',
+      modeTitle: 'All 12 Lithologies',
+    };
+
+    expect(() => drawStripLog(ctx, options)).not.toThrow();
+    expect(ctx.stroke).toHaveBeenCalled();
   });
 });

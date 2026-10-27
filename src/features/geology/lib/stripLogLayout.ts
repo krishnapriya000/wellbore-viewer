@@ -35,7 +35,7 @@ export interface DepthTick {
  */
 export function computeTvdIntervals(formations: readonly Formation[]): StripLogInterval[] {
   const tvdFormations = formations
-    .filter((f) => f.ref === 'TVD' && f.to > f.from)
+    .filter((f) => f.ref === 'TVD' && f.to > f.from && f.visible !== false)
     .sort((a, b) => a.from - b.from);
 
   return tvdFormations.map((f) => ({
@@ -65,7 +65,7 @@ export function computeMdIntervals(
   if (points.length < 2) {
     // Fallback: If no survey points are loaded yet, display MD formations configured for this well
     const wellMdFormations = formations
-      .filter((f) => f.ref === 'MD' && f.well === wellName && f.to > f.from)
+      .filter((f) => f.ref === 'MD' && f.well === wellName && f.to > f.from && f.visible !== false)
       .sort((a, b) => a.from - b.from);
 
     return wellMdFormations.map((f) => ({

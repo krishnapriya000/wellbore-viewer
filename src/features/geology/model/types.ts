@@ -24,17 +24,23 @@ const Component = z.object({ lith: z.enum(LITHOLOGIES), pct: z.number().positive
  */
 export const FormationSchema = z
   .object({
-    id: z.string(),
-    ref: z.enum(['TVD', 'MD']),
-    well: z.string(), // 'All' for TVD layers
-    from: z.number().nonnegative(),
-    to: z.number().positive(),
-    name: z.string().trim().min(1).max(80),
-    comp: z.array(Component).min(1).max(3),
+    id: z.string().min(1, { message: 'ID is required' }),
+    ref: z.enum(['TVD', 'MD'], { message: 'Reference must be TVD or MD' }),
+    well: z.string().min(1, { message: 'Well name is required' }), // 'All' for TVD layers
+    from: z.number({ message: 'Top depth must be a number' }).nonnegative({ message: 'Top depth must be ≥ 0' }),
+    to: z.number({ message: 'Bottom depth must be a number' }).positive({ message: 'Bottom depth must be > 0' }),
+    name: z.string().trim().min(1, { message: 'Formation name is required' }).max(80, { message: 'Formation name must be ≤ 80 characters' }),
+    comp: z.array(Component).min(1, { message: 'At least one lithology component is required' }).max(3, { message: 'Maximum 3 lithology components allowed' }),
+    visible: z.boolean().optional(),
+    color: z.string().optional(),
+    order: z.number().optional(),
   })
-  .refine((f) => f.to > f.from, { message: 'To must be deeper than From', path: ['to'] })
+  .refine((f) => f.to > f.from, {
+    message: 'Bottom depth must be greater than top depth (To must be deeper than From)',
+    path: ['to'],
+  })
   .refine((f) => Math.abs(f.comp.reduce((a, c) => a + c.pct, 0) - 100) < 0.5, {
-    message: 'Lithology percents must total 100%',
+    message: 'Lithology composition percentages must total 100%',
     path: ['comp'],
   });
 
