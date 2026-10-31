@@ -11,6 +11,7 @@ export {
   type Point3D,
   type StaffPosition,
 } from './lib/scale';
+export { createLithologyTexture } from './lib/lithologyTexture';
 export {
   computeGeologyWalls,
   type GeologyWallsLayout,
@@ -19,6 +20,8 @@ export {
 } from './lib/geologyWalls';
 // The viewport pulls in three.js; load it lazily from the app shell.
 export { Viewport } from './ui/Viewport';
+export { LayersPanel, type LayersPanelProps } from './ui/LayersPanel';
+export { useLayersState, type LayersState, type UseLayersStateReturn } from './ui/useLayersState';
 export { CasingLayer } from './ui/layers/CasingLayer';
 export { EventMarkersLayer } from './ui/layers/EventMarkersLayer';
 export { GeologyWallsLayer } from './ui/layers/GeologyWallsLayer';

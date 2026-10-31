@@ -86,6 +86,31 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
       rerender(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
       expect(screen.queryByText('Overburden')).not.toBeInTheDocument();
     });
+
+    it('hides the entire layer when visible={false} is passed', () => {
+      render(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} visible={false} />);
+      expect(screen.queryByText('Overburden')).not.toBeInTheDocument();
+      expect(screen.queryByText('Upper Shale')).not.toBeInTheDocument();
+    });
+
+    it('updates 3D layer when formation lithology is updated in store', () => {
+      const { rerender } = render(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
+      expect(screen.getByText('Target Sand')).toBeInTheDocument();
+
+      act(() => {
+        useGeologyStore.getState().updateFormation('fm-3', {
+          name: 'Target Limestone',
+          ref: 'TVD',
+          well: 'All',
+          from: 3500,
+          to: 4500,
+          comp: [{ lith: 'limestone', pct: 100 }],
+        });
+      });
+
+      rerender(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
+      expect(screen.getByText('Target Limestone')).toBeInTheDocument();
+    });
   });
 
   describe('SleeveLayer', () => {

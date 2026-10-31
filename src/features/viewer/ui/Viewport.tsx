@@ -7,6 +7,8 @@ import { useSurveyStore } from '@/features/survey';
 import { Segmented } from '@/shared/ui/Segmented';
 import { wellBounds } from '../lib/scene';
 import { CameraRig, type CameraView } from './CameraRig';
+import { LayersPanel } from './LayersPanel';
+import { useLayersState } from './useLayersState';
 import { ActualLayer } from './layers/ActualLayer';
 import { BitLayer } from './layers/BitLayer';
 import { CasingLayer } from './layers/CasingLayer';
@@ -25,6 +27,8 @@ export function Viewport() {
   const [view, setView] = useState<CameraView>('3d');
   const [autoRotate, setAutoRotate] = useState(false);
   const colors = useSceneColors();
+
+  const layers = useLayersState(wells);
 
   // Content key: changes when any well's data changes, not when the bit moves.
   const dataKey = wells.map((w) => `${w.name}:${w.version}`).join('|');
@@ -47,9 +51,9 @@ export function Viewport() {
         />
         <CameraRig view={view} bounds={bounds} fitKey={wells.map((w) => w.name).join('|')} />
         <GridLayer bounds={bounds} colors={colors} />
-        <GeologyWallsLayer bounds={bounds} wells={wells} />
+        <GeologyWallsLayer bounds={bounds} wells={wells} visible={layers.showGeology} />
         {wells.map((w) => (
-          <SleeveLayer key={`sleeve-${w.name}`} well={w} />
+          <SleeveLayer key={`sleeve-${w.name}`} well={w} visible={layers.showGeology} />
         ))}
         <CasingLayer />
         {wells.map((w) => (
@@ -59,17 +63,19 @@ export function Viewport() {
             color={colors.wells[w.slot] ?? colors.label}
             mode={mode}
             isActiveWell={w.name === activeWell}
+            visible={layers.isPlanVisible(w.name)}
           />
         ))}
-        {active && (
+        {layers.showActual && active && (
           <ActualLayer
             key={active.name}
             well={active}
             color={colors.actual}
             mode={mode}
+            visible={layers.showActual}
           />
         )}
-        <BitLayer color={colors.actual} />
+        <BitLayer color={colors.actual} visible={layers.showActual} />
         <EventMarkersLayer />
         <ScaleLayer
           bounds={bounds}
@@ -79,6 +85,7 @@ export function Viewport() {
           labelColor={colors.label}
           gridColor={colors.grid}
           wellColors={colors.wells}
+          visible={layers.showScale}
         />
       </Canvas>
 
@@ -99,12 +106,34 @@ export function Viewport() {
             ]}
           />
           <div className="seg">
+            <button
+              type="button"
+              aria-pressed={layers.showGeology}
+              onClick={() => layers.setShowGeology((v) => !v)}
+              title="Toggle 3D geological formations and lithology patterns"
+            >
+              Formations
+            </button>
             <button type="button" aria-pressed={autoRotate} onClick={() => setAutoRotate((v) => !v)}>
               Rotate
             </button>
           </div>
         </div>
       </div>
+      <LayersPanel
+        wells={wells}
+        colors={colors}
+        showPlans={layers.showPlans}
+        planVisibility={layers.planVisibility}
+        showActual={layers.showActual}
+        showGeology={layers.showGeology}
+        showScale={layers.showScale}
+        onTogglePlan={layers.togglePlan}
+        onToggleShowPlans={layers.toggleShowPlans}
+        onToggleActual={layers.toggleActual}
+        onToggleGeology={layers.toggleGeology}
+        onToggleScale={layers.toggleScale}
+      />
       <LiveFeed />
     </section>
   );

@@ -3,14 +3,10 @@ import { useSurveyStore } from '@/features/survey';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import { useUnits } from '@/shared/units/useUnits';
-import { LITHOLOGY_META_LIST } from '../lib/lithologyColors';
+import { blendLithologyColor, dominantLithology, LITHOLOGY_META_LIST } from '../lib/lithologyColors';
 import { useGeologyStore } from '../model/geologyStore';
-import {
-  FormationSchema,
-  LITHOLOGIES,
-  type Formation,
-  type Lithology,
-} from '../model/types';
+import { FormationSchema, LITHOLOGIES, type Formation, type Lithology } from '../model/types';
+import { LithologySwatch } from './LithologySwatch';
 
 interface CompRow {
   lith: Lithology;
@@ -181,13 +177,16 @@ export function FormationEditor() {
         </span>
       </div>
       <p className="hint" style={{ fontSize: '0.74rem', margin: '4px 0 10px 0', color: 'var(--muted)' }}>
-        Sample stratigraphy loaded for visualization. Use the editor below to configure actual well tops and lithology.
+        Sample stratigraphy loaded for visualization. Use the editor below to configure actual well tops and
+        lithology.
       </p>
 
       {/* 1. Existing formations list */}
       <div className="formation-list" role="region" aria-label="Formation layers">
         {formations.length === 0 ? (
-          <p className="hint">No formations defined. Click &quot;Reset Sample Formations&quot; below or add a new formation.</p>
+          <p className="hint">
+            No formations defined. Click &quot;Reset Sample Formations&quot; below or add a new formation.
+          </p>
         ) : (
           formations.map((f) => (
             <div
@@ -206,11 +205,22 @@ export function FormationEditor() {
                     onClick={() => toggleVisibility(f.id)}
                     aria-label={f.visible === false ? `Show ${f.name}` : `Hide ${f.name}`}
                     aria-pressed={f.visible !== false}
-                    title={f.visible === false ? 'Show formation in 3D & strip log' : 'Hide formation in 3D & strip log'}
+                    title={
+                      f.visible === false
+                        ? 'Show formation in 3D & strip log'
+                        : 'Hide formation in 3D & strip log'
+                    }
                     style={{ padding: '1px 6px', fontSize: '0.72rem' }}
                   >
                     {f.visible === false ? '👁 Off' : '👁 On'}
                   </button>
+                  <LithologySwatch
+                    lith={dominantLithology(f.comp)}
+                    baseColor={blendLithologyColor(f.comp).hex}
+                    width={22}
+                    height={14}
+                    title={`${f.name} (${dominantLithology(f.comp)})`}
+                  />
                   <strong>{f.name}</strong>
                   {f.visible === false && (
                     <span className="pill idle" style={{ fontSize: '0.62rem' }}>
@@ -226,9 +236,7 @@ export function FormationEditor() {
                 <span>
                   {units.depth(f.from)} – {units.depth(f.to)}
                 </span>
-                <span className="formation-comp">
-                  {f.comp.map((c) => `${c.lith} ${c.pct}%`).join(', ')}
-                </span>
+                <span className="formation-comp">{f.comp.map((c) => `${c.lith} ${c.pct}%`).join(', ')}</span>
               </div>
               <Authorized permission="geology:edit">
                 <div className="formation-actions">
@@ -250,11 +258,7 @@ export function FormationEditor() {
                       >
                         Confirm
                       </button>
-                      <button
-                        type="button"
-                        className="btn small"
-                        onClick={() => setConfirmDeleteId(null)}
-                      >
+                      <button type="button" className="btn small" onClick={() => setConfirmDeleteId(null)}>
                         Cancel
                       </button>
                     </span>
@@ -292,7 +296,9 @@ export function FormationEditor() {
           }}
         >
           <span>{showLegend ? '▼ Hide Lithology Legend' : '▶ Show USGS Lithology Legend (12 Types)'}</span>
-          <span className="pill idle" style={{ fontSize: '0.65rem' }}>12 Standard Patterns</span>
+          <span className="pill idle" style={{ fontSize: '0.65rem' }}>
+            12 Standard Patterns
+          </span>
         </button>
         {showLegend && (
           <div
@@ -324,16 +330,12 @@ export function FormationEditor() {
                   border: '1px solid var(--line)',
                 }}
               >
-                <span
-                  style={{
-                    width: '14px',
-                    height: '14px',
-                    borderRadius: '3px',
-                    background: meta.color.hex,
-                    border: '1px solid rgba(0,0,0,0.25)',
-                    flexShrink: 0,
-                  }}
-                  aria-hidden="true"
+                <LithologySwatch
+                  lith={meta.lith}
+                  baseColor={meta.color.hex}
+                  width={28}
+                  height={18}
+                  title={`${meta.name} - ${meta.patternName}`}
                 />
                 <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
                   <strong style={{ textTransform: 'capitalize' }}>{meta.name}</strong>
@@ -385,10 +387,7 @@ export function FormationEditor() {
           <div className="grid4" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
             <label className="field">
               Reference
-              <select
-                value={refType}
-                onChange={(e) => handleRefChange(e.target.value as 'TVD' | 'MD')}
-              >
+              <select value={refType} onChange={(e) => handleRefChange(e.target.value as 'TVD' | 'MD')}>
                 <option value="TVD">TVD (Layer across field)</option>
                 <option value="MD">MD (Wellbore override)</option>
               </select>
@@ -451,23 +450,22 @@ export function FormationEditor() {
             </div>
 
             {comp.map((row, idx) => (
-              <div
-                key={idx}
-                className="row"
-                style={{ alignItems: 'center', marginTop: '4px', gap: '6px' }}
-              >
-                <select
-                  value={row.lith}
-                  onChange={(e) => handleCompChange(idx, 'lith', e.target.value)}
-                  style={{ flex: 2 }}
-                  aria-label={`Lithology ${idx + 1}`}
-                >
-                  {LITHOLOGIES.map((lith) => (
-                    <option key={lith} value={lith}>
-                      {lith}
-                    </option>
-                  ))}
-                </select>
+              <div key={idx} className="row" style={{ alignItems: 'center', marginTop: '4px', gap: '6px' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flex: 2 }}>
+                  <LithologySwatch lith={row.lith} width={28} height={20} title={row.lith} />
+                  <select
+                    value={row.lith}
+                    onChange={(e) => handleCompChange(idx, 'lith', e.target.value)}
+                    style={{ flex: 1 }}
+                    aria-label={`Lithology ${idx + 1}`}
+                  >
+                    {LITHOLOGIES.map((lith) => (
+                      <option key={lith} value={lith}>
+                        {lith}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <input
                   type="number"

@@ -1,9 +1,11 @@
 import { Box3, Vector3 } from 'three';
 import {
   blendLithologyColor,
+  dominantLithology,
   formatCompSummary,
   type ColorRgb,
   type Formation,
+  type Lithology,
 } from '@/features/geology';
 import { atMd, type Well } from '@/features/survey';
 import { SCALE, toScene } from './scene';
@@ -17,11 +19,20 @@ export interface TvdWallDescriptor {
   toFt: number;
   color: ColorRgb;
   compSummary: string;
+  dominantLith: Lithology;
+  comp: readonly { lith: Lithology; pct: number }[];
   position: [number, number, number];
   size: [number, number, number];
   labelPosition: [number, number, number];
   yTop: number;
   yBottom: number;
+  northWallPosition: [number, number, number];
+  northWallSize: [number, number];
+  westWallPosition: [number, number, number];
+  westWallSize: [number, number];
+  topPlanePosition: [number, number, number];
+  topPlaneSize: [number, number];
+  horizonLoop: [number, number, number][];
 }
 
 export interface MdOverrideDescriptor {
@@ -33,6 +44,8 @@ export interface MdOverrideDescriptor {
   toFt: number;
   color: ColorRgb;
   compSummary: string;
+  dominantLith: Lithology;
+  comp: readonly { lith: Lithology; pct: number }[];
   position: [number, number, number];
   size: [number, number, number];
   labelPosition: [number, number, number];
@@ -94,6 +107,21 @@ export function computeGeologyWalls(
       const yBottom = -f.to * SCALE;
       const height = (f.to - f.from) * SCALE;
       const centerY = -(f.from + f.to) * 0.5 * SCALE;
+      const dominantLith = dominantLithology(f.comp);
+
+      const northWallPosition: [number, number, number] = [centerX, centerY, minZ];
+      const northWallSize: [number, number] = [width, height];
+      const westWallPosition: [number, number, number] = [minX, centerY, centerZ];
+      const westWallSize: [number, number] = [depth, height];
+      const topPlanePosition: [number, number, number] = [centerX, yTop, centerZ];
+      const topPlaneSize: [number, number] = [width, depth];
+      const horizonLoop: [number, number, number][] = [
+        [minX, yTop, minZ],
+        [maxX, yTop, minZ],
+        [maxX, yTop, maxZ],
+        [minX, yTop, maxZ],
+        [minX, yTop, minZ],
+      ];
 
       tvdWalls.push({
         id: f.id,
@@ -104,20 +132,28 @@ export function computeGeologyWalls(
         toFt: f.to,
         color,
         compSummary,
+        dominantLith,
+        comp: f.comp,
         position: [centerX, centerY, centerZ],
         size: [width, height, depth],
-        labelPosition: [minX, centerY, maxZ],
+        // Place label on the north back-wall, 20% from the top of the formation,
+        // centered horizontally — this is the most visible face in the default camera view.
+        labelPosition: [centerX, yTop - height * 0.2, minZ],
         yTop,
         yBottom,
+        northWallPosition,
+        northWallSize,
+        westWallPosition,
+        westWallSize,
+        topPlanePosition,
+        topPlaneSize,
+        horizonLoop,
       });
     } else if (f.ref === 'MD') {
+      const dominantLith = dominantLithology(f.comp);
       // Find the associated wellbore
       const targetWell = wells.find((w) => w.name === f.well);
-      const points = targetWell
-        ? targetWell.actual.length >= 2
-          ? targetWell.actual
-          : targetWell.plan
-        : [];
+      const points = targetWell ? (targetWell.actual.length >= 2 ? targetWell.actual : targetWell.plan) : [];
 
       if (points.length >= 2) {
         // Sample points along the MD override interval
@@ -148,6 +184,8 @@ export function computeGeologyWalls(
           toFt: f.to,
           color,
           compSummary,
+          dominantLith,
+          comp: f.comp,
           position: [localCenter.x, localCenter.y, localCenter.z],
           size: [wSize, hSize, dSize],
           labelPosition: [localCenter.x, localCenter.y + hSize / 2 + 1.2, localCenter.z],

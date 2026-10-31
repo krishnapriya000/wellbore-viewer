@@ -13,10 +13,12 @@ export function ActualLayer({
   well,
   color,
   mode = 'actual',
+  visible = true,
 }: {
   well: Well;
   color: string;
   mode?: 'actual' | 'plan';
+  visible?: boolean;
 }) {
   const reached = useDrilling((s) => stationsReached(well.actual, s.md));
 
@@ -26,7 +28,7 @@ export function ActualLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version + count are the content key
   }, [well.version, reached]);
 
-  if (!curve) return null;
+  if (!visible || !curve) return null;
   const isPlanMode = mode === 'plan';
 
   return (

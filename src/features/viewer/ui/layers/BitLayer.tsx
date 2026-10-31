@@ -17,7 +17,7 @@ const tmp = new Vector3();
  *  2. writes it to the store (no React re-render: panels read it throttled),
  *  3. moves the bit mesh and the short segment from the last station to the bit in place.
  */
-export function BitLayer({ color }: { color: string }) {
+export function BitLayer({ color, visible = true }: { color: string; visible?: boolean }) {
   const bit = useRef<Mesh>(null);
   const timer = useMemo(() => {
     const t = new Timer();
@@ -64,6 +64,11 @@ export function BitLayer({ color }: { color: string }) {
       }
     }
 
+    if (!visible) {
+      if (bit.current) bit.current.visible = false;
+      return;
+    }
+
     const md = useDrilling.getState().md;
     const tip = atMd(points, md)!;
     bit.current.visible = true;
@@ -88,11 +93,15 @@ export function BitLayer({ color }: { color: string }) {
 
   return (
     <group name="bit">
-      <mesh ref={bit}>
-        <sphereGeometry args={[1.3, 18, 12]} />
-        <meshBasicMaterial color={color} />
-      </mesh>
-      <primitive object={tipObject} />
+      {visible && (
+        <>
+          <mesh ref={bit}>
+            <sphereGeometry args={[1.3, 18, 12]} />
+            <meshBasicMaterial color={color} />
+          </mesh>
+          <primitive object={tipObject} />
+        </>
+      )}
     </group>
   );
 }

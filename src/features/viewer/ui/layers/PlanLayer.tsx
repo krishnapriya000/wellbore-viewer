@@ -13,11 +13,13 @@ export function PlanLayer({
   color,
   mode = 'actual',
   isActiveWell = false,
+  visible = true,
 }: {
   well: Well;
   color: string;
   mode?: 'actual' | 'plan';
   isActiveWell?: boolean;
+  visible?: boolean;
 }) {
   const curve = useMemo(() => {
     const pts = densify(well.plan).map((p) => toScene(p));
@@ -27,6 +29,8 @@ export function PlanLayer({
 
   const end = well.plan.at(-1) ?? well.actual.at(-1);
   const labelPos = useMemo(() => (end ? toScene(end).setY(toScene(end).y + 3.2) : null), [end]);
+
+  if (!visible) return null;
 
   const isPrimaryPlan = isActiveWell && mode === 'plan';
 

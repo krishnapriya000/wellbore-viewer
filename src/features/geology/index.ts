@@ -11,10 +11,12 @@ export {
   type LithologyMeta,
 } from './lib/lithologyColors';
 export {
-  clearPersistedFormations,
-  loadPersistedFormations,
-  persistFormations,
-} from './lib/persistence';
+  clearLithologyTileCache,
+  drawLithologySwatch,
+  drawLithologyTile,
+  getLithologyTileCanvas,
+} from './lib/lithologyPatterns';
+export { clearPersistedFormations, loadPersistedFormations, persistFormations } from './lib/persistence';
 export {
   computeSleeveSegments,
   GEOLOGY_SCALE,
@@ -31,11 +33,8 @@ export {
   type DepthTick,
   type StripLogInterval,
 } from './lib/stripLogLayout';
-export {
-  INITIAL_FORMATIONS,
-  useGeologyStore,
-  type GeologyState,
-} from './model/geologyStore';
+export { INITIAL_FORMATIONS, useGeologyStore, type GeologyState } from './model/geologyStore';
 export { FormationSchema, LITHOLOGIES, type Formation, type Lithology } from './model/types';
 export { FormationEditor } from './ui/FormationEditor';
+export { LithologySwatch, type LithologySwatchProps } from './ui/LithologySwatch';
 export { StripLog } from './ui/StripLog';

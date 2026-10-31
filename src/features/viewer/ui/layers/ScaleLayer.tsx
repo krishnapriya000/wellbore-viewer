@@ -134,6 +134,7 @@ export function ScaleLayer({
   labelColor,
   gridColor,
   wellColors,
+  visible = true,
 }: {
   bounds: Box3;
   well?: Well;
@@ -142,6 +143,7 @@ export function ScaleLayer({
   labelColor: string;
   gridColor: string;
   wellColors?: readonly string[];
+  visible?: boolean;
 }) {
   const unit = useSettings((s) => s.unit);
   const drillMode = useDrilling((s) => s.mode);
@@ -212,6 +214,7 @@ export function ScaleLayer({
   const staffBadgeTextRef = useRef<HTMLSpanElement>(null);
 
   useFrame(() => {
+    if (!visible) return;
     const drill = useDrilling.getState();
     const activeWell = drill.activeWell ? useSurveyStore.getState().wells[drill.activeWell] : undefined;
     const refLine = refLineRef.current;
@@ -280,6 +283,8 @@ export function ScaleLayer({
       attr.needsUpdate = true;
     }
   });
+
+  if (!visible) return null;
 
   return (
     <group name="scale-layer">

@@ -7,20 +7,20 @@ export interface ColorRgb {
   b: number;
 }
 
-/** Standard USGS / industry palette for the 12 supported lithologies. */
+/** Standard palette for the 12 supported lithologies from the reference viewer. */
 export const LITHOLOGY_COLORS: Record<Lithology, ColorRgb> = {
-  sandstone: { hex: '#f4d03f', r: 0.957, g: 0.816, b: 0.247 }, // warm golden yellow
-  shale: { hex: '#707b7c', r: 0.439, g: 0.482, b: 0.486 }, // cool mineral slate grey
-  siltstone: { hex: '#b7950b', r: 0.718, g: 0.584, b: 0.043 }, // earthy mustard amber
-  limestone: { hex: '#3498db', r: 0.204, g: 0.596, b: 0.859 }, // marine sky blue
-  dolomite: { hex: '#16a085', r: 0.086, g: 0.627, b: 0.522 }, // deep teal turquoise
-  marl: { hex: '#82e0aa', r: 0.51, g: 0.878, b: 0.667 }, // calcareous greenish marl
-  coal: { hex: '#212f3d', r: 0.129, g: 0.184, b: 0.239 }, // deep charcoal black
-  anhydrite: { hex: '#af7ac5', r: 0.686, g: 0.478, b: 0.773 }, // crystalline purple lilac
-  salt: { hex: '#e8daef', r: 0.91, g: 0.855, b: 0.937 }, // halite pale violet white
-  conglomerate: { hex: '#e67e22', r: 0.902, g: 0.494, b: 0.133 }, // pebbly burnt orange
-  chert: { hex: '#a04000', r: 0.627, g: 0.251, b: 0.0 }, // siliceous terracotta
-  basement: { hex: '#922b21', r: 0.573, g: 0.169, b: 0.129 }, // crystalline deep crimson
+  sandstone: { hex: '#f1d36e', r: 0.945, g: 0.827, b: 0.431 }, // warm sandstone yellow
+  shale: { hex: '#97a596', r: 0.592, g: 0.647, b: 0.588 }, // grey-green shale
+  siltstone: { hex: '#d8bc8f', r: 0.847, g: 0.737, b: 0.561 }, // beige siltstone
+  limestone: { hex: '#86b6dc', r: 0.525, g: 0.714, b: 0.863 }, // marine limestone blue
+  dolomite: { hex: '#b9a3dc', r: 0.725, g: 0.639, b: 0.863 }, // purple dolomite
+  marl: { hex: '#c5d39b', r: 0.773, g: 0.827, b: 0.608 }, // pale green calcareous marl
+  coal: { hex: '#2f2f2f', r: 0.184, g: 0.184, b: 0.184 }, // dark carbonaceous coal
+  anhydrite: { hex: '#e9b9d2', r: 0.914, g: 0.725, b: 0.824 }, // crystalline lilac anhydrite
+  salt: { hex: '#dfe8f4', r: 0.875, g: 0.91, b: 0.957 }, // light halite salt
+  conglomerate: { hex: '#eaa65e', r: 0.918, g: 0.651, b: 0.369 }, // orange conglomerate
+  chert: { hex: '#e7e1c6', r: 0.906, g: 0.882, b: 0.776 }, // pale chert
+  basement: { hex: '#e1907f', r: 0.882, g: 0.565, b: 0.498 }, // salmon-coloured granite/basement
 };
 
 export const DEFAULT_LITHOLOGY_COLOR: ColorRgb = {
@@ -181,4 +181,3 @@ export const LITHOLOGY_METAS: Record<Lithology, LithologyMeta> = {
 };
 
 export const LITHOLOGY_META_LIST: LithologyMeta[] = Object.values(LITHOLOGY_METAS);
-

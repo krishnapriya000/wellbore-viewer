@@ -1,10 +1,11 @@
 import type { SurveyPoint } from '@/features/survey';
 import { atMd } from '@/features/survey';
-import type { Formation } from '../model/types';
+import type { Formation, Lithology } from '../model/types';
 import { formationAt } from './formationAt';
 import {
   blendLithologyColor,
   DEFAULT_LITHOLOGY_COLOR,
+  dominantLithology,
   formatCompSummary,
   type ColorRgb,
 } from './lithologyColors';
@@ -21,6 +22,7 @@ export interface SleeveSegment {
   id: string;
   formationId: string | null;
   formationName: string;
+  dominantLith: Lithology | null;
   ref: 'TVD' | 'MD' | 'none';
   color: ColorRgb;
   compSummary: string;
@@ -185,6 +187,7 @@ export function computeSleeveSegments(
       id: `${wellName}-${segments.length}-${f ? f.id : 'unmapped'}`,
       formationId: f ? f.id : null,
       formationName: f ? f.name : 'Unmapped',
+      dominantLith: f ? dominantLithology(f.comp) : null,
       ref: f ? f.ref : 'none',
       color: f ? blendLithologyColor(f.comp) : DEFAULT_LITHOLOGY_COLOR,
       compSummary: f ? formatCompSummary(f) : 'Undifferentiated',

@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { CatmullRomCurve3, Vector3 } from 'three';
 import { useDrilling } from '@/features/drilling';
 import { computeSleeveSegments, useGeologyStore, type SleeveSegment } from '@/features/geology';
 import { stationsReached, type Well } from '@/features/survey';
+import { createLithologyTexture } from '../../lib/lithologyTexture';
 
 function splitSegmentAtMd(
   seg: SleeveSegment,
@@ -51,33 +52,38 @@ function splitSegmentAtMd(
   return { drilled, ahead };
 }
 
-function SleeveSegmentMesh({
-  segment,
-  isDrilled = true,
-}: {
-  segment: SleeveSegment;
-  isDrilled?: boolean;
-}) {
+function SleeveSegmentMesh({ segment, isDrilled = true }: { segment: SleeveSegment; isDrilled?: boolean }) {
   const curve = useMemo(() => {
     if (segment.points.length < 2) return null;
     const pts = segment.points.map((p) => new Vector3(...p.scene));
     return new CatmullRomCurve3(pts, false, 'centripetal');
   }, [segment.points]);
 
+  const repX = Math.max(1, (segment.endMd - segment.startMd) / 300);
+  const texture = useMemo(() => {
+    if (!segment.dominantLith) return null;
+    return createLithologyTexture(segment.dominantLith, repX, 3, segment.color.hex);
+  }, [segment.dominantLith, repX, segment.color.hex]);
+
+  useEffect(() => {
+    return () => {
+      texture?.dispose();
+    };
+  }, [texture]);
+
   if (!curve) return null;
 
   return (
     <mesh name={`sleeve-${segment.id}-${isDrilled ? 'drilled' : 'ahead'}`}>
       {/* Sleeve tube concentric around trajectory (radius 0.58 vs wellbore 0.42) */}
-      <tubeGeometry
-        args={[curve, Math.min(600, Math.max(3, segment.points.length * 2)), 0.58, 8, false]}
-      />
+      <tubeGeometry args={[curve, Math.min(600, Math.max(3, segment.points.length * 2)), 0.58, 8, false]} />
       <meshStandardMaterial
-        color={segment.color.hex}
+        map={texture ?? undefined}
+        color={texture ? 0xffffff : segment.color.hex}
         roughness={isDrilled ? 0.45 : 0.85}
         metalness={0.08}
         transparent
-        opacity={isDrilled ? 0.85 : 0.22}
+        opacity={isDrilled ? 0.85 : 0.28}
         depthWrite={false}
       />
     </mesh>
@@ -95,7 +101,13 @@ function SleeveSegmentMesh({
  * - Rebuilt only when geology data, well selection, units, theme, or survey station intervals change;
  *   never on every 60 FPS animation frame.
  */
-export function SleeveLayer({ well }: { well: Well }) {
+export function SleeveLayer({
+  well,
+  visible = true,
+}: {
+  well: Well;
+  visible?: boolean;
+}) {
   const formations = useGeologyStore((s) => s.formations);
   const geologyVersion = useGeologyStore((s) => s.version);
   const activeWell = useDrilling((s) => s.activeWell);
@@ -140,6 +152,8 @@ export function SleeveLayer({ well }: { well: Well }) {
 
     return { drilledSegments: drilled, aheadSegments: ahead };
   }, [rawSegments, activeWell, well.name, mode, points, bitStation]);
+
+  if (!visible) return null;
 
   return (
     <group name={`sleeve-layer-${well.name}`}>

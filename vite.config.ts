@@ -37,6 +37,7 @@ export default defineConfig(({ command, mode }) => {
     test: {
       globals: true,
       environment: 'jsdom',
+      pool: 'vmThreads',
       setupFiles: ['./src/test/setup.ts'],
       env: { VITE_AUTH_MODE: 'mock', VITE_MOCK_ROLE: 'Wellbore.Engineer' },
       include: ['src/**/*.test.{ts,tsx}'],

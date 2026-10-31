@@ -146,6 +146,66 @@ select {
 .feed div.event {
   border-left: 3px solid var(--accent);
 }
+.legend {
+  left: 10px;
+  bottom: 10px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  max-width: calc(100% - 20px);
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  pointer-events: auto;
+}
+.legend-header {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 2px;
+  user-select: none;
+}
+.legend .row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  user-select: none;
+}
+.legend .sw {
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  flex: none;
+}
+.legend .sw.plan {
+  height: 0;
+  border-top: 2px dashed var(--muted);
+  background: none;
+}
+.legend .sw.formations {
+  background: var(--muted);
+  opacity: 0.45;
+  height: 8px;
+  border-radius: 2px;
+}
+.legend .sw.scale {
+  background: var(--scene-grid);
+  height: 4px;
+  border-radius: 2px;
+}
+.legend input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
 .well-label {
   font: 700 1rem var(--f-display);
   white-space: nowrap;
@@ -203,7 +263,7 @@ select {
 }
 .geology-wall-badge {
   font: 600 0.68rem var(--f-mono);
-  color: var(--fg);
+  color: var(--ink);
   background: color-mix(in srgb, var(--surface) 84%, transparent);
   border: 1px solid var(--line);
   border-left: 3px solid var(--accent);

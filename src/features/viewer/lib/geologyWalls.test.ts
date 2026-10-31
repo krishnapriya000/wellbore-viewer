@@ -58,17 +58,44 @@ describe('computeGeologyWalls', () => {
 
     const overburden = layout.tvdWalls[0]!;
     expect(overburden.name).toBe('Overburden');
+    expect(overburden.dominantLith).toBe('shale');
     expect(overburden.yTop).toBe(-0 * SCALE);
     expect(overburden.yBottom).toBe(-1500 * SCALE);
     expect(overburden.size[1]).toBeCloseTo(1500 * SCALE);
     expect(overburden.position[1]).toBeCloseTo(-750 * SCALE);
+    expect(overburden.northWallPosition).toBeDefined();
+    expect(overburden.westWallPosition).toBeDefined();
+    expect(overburden.topPlanePosition).toBeDefined();
+    expect(overburden.horizonLoop).toHaveLength(5);
 
     const targetSand = layout.tvdWalls[1]!;
     expect(targetSand.name).toBe('Target Sand');
+    expect(targetSand.dominantLith).toBe('sandstone');
     expect(targetSand.yTop).toBe(-1500 * SCALE);
     expect(targetSand.yBottom).toBe(-4500 * SCALE);
     expect(targetSand.size[1]).toBeCloseTo(3000 * SCALE);
     expect(targetSand.position[1]).toBeCloseTo(-3000 * SCALE);
+  });
+
+  it('places TVD formation label on the north wall near the top (not at scene perimeter corner)', () => {
+    const bounds = new Box3(new Vector3(-20, -50, -20), new Vector3(20, 0, 20));
+    const layout = computeGeologyWalls(TEST_FORMATIONS, bounds, [MOCK_WELL]);
+
+    for (const wall of layout.tvdWalls) {
+      const [lx, ly, lz] = wall.labelPosition;
+      const { footprint } = layout;
+      const centerX = (footprint.minX + footprint.maxX) / 2;
+
+      // X should be at the horizontal center of the scene footprint
+      expect(lx).toBeCloseTo(centerX, 1);
+
+      // Y must fall inside the formation's vertical band
+      expect(ly).toBeLessThanOrEqual(wall.yTop + 0.001);
+      expect(ly).toBeGreaterThanOrEqual(wall.yBottom - 0.001);
+
+      // Z should be at the north-wall face (minZ), not the south perimeter (maxZ)
+      expect(lz).toBeCloseTo(footprint.minZ, 1);
+    }
   });
 
   it('computes localized MD override bounding boxes for well-specific formations', () => {
@@ -80,6 +107,7 @@ describe('computeGeologyWalls', () => {
     expect(override.name).toBe('Sand Stringer');
     expect(override.well).toBe('L1');
     expect(override.ref).toBe('MD');
+    expect(override.dominantLith).toBe('sandstone');
     expect(override.size[0]).toBeGreaterThan(0);
     expect(override.size[1]).toBeGreaterThan(0);
     expect(override.size[2]).toBeGreaterThan(0);
