@@ -8,6 +8,7 @@ import {
   getBitTip,
   getDeviationAtBit,
   getFormationAtBit,
+  getHoleAtBit,
   getLatestEventAtBit,
   getRelevantCasingShoe,
 } from './readout';
@@ -179,6 +180,64 @@ describe('drilling readout helpers', () => {
     it('returns null if bit depth is outside any formation interval', () => {
       const tip = { md: 6000, inc: 0, azi: 0, tvd: 6000, n: 0, e: 0, dls: 0, beta: 0 };
       expect(getFormationAtBit(sampleFormations, 'L1', tip)).toBeNull();
+    });
+  });
+
+  describe('getHoleAtBit', () => {
+    it('returns null when there are no construction items', () => {
+      expect(getHoleAtBit([], 'L1', 1000)).toBeNull();
+    });
+
+    it('returns the hole section that spans the current bit MD', () => {
+      // sampleCasings contains hole-1: kind='hole', from=3500, to=5000, size=8.5
+      const hole = getHoleAtBit(sampleCasings, 'L1', 4000);
+      expect(hole).not.toBeNull();
+      expect(hole?.size).toBe(8.5);
+      expect(hole?.kind).toBe('hole');
+    });
+
+    it('returns null when bit is at a depth not covered by any hole section', () => {
+      // At md=2500, sampleCasings has no hole section (only casings span 0–3500)
+      const hole = getHoleAtBit(sampleCasings, 'L1', 2500);
+      expect(hole).toBeNull();
+    });
+
+    it('respects well-specific vs shared hole sections', () => {
+      const items: ConstructionItem[] = [
+        {
+          id: 'hole-all',
+          kind: 'hole',
+          well: 'All',
+          from: 0,
+          to: 2000,
+          size: 17.5,
+          note: 'Shared surface hole',
+        },
+        {
+          id: 'hole-l1',
+          kind: 'hole',
+          well: 'L1',
+          from: 2000,
+          to: 5000,
+          size: 8.5,
+          note: 'L1 production hole',
+        },
+      ];
+
+      // L1 at md=3000 gets the L1-specific hole
+      const holeL1 = getHoleAtBit(items, 'L1', 3000);
+      expect(holeL1?.size).toBe(8.5);
+      expect(holeL1?.well).toBe('L1');
+
+      // L2 at md=3000 has no hole covering it (hole-l1 is well='L1' only)
+      const holeL2 = getHoleAtBit(items, 'L2', 3000);
+      expect(holeL2).toBeNull();
+
+      // Both L1 and L2 share the 'All' hole at md=1000
+      const holeAllL1 = getHoleAtBit(items, 'L1', 1000);
+      expect(holeAllL1?.well).toBe('All');
+      const holeAllL2 = getHoleAtBit(items, 'L2', 1000);
+      expect(holeAllL2?.well).toBe('All');
     });
   });
 

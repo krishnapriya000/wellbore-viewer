@@ -29,7 +29,7 @@ export function BitReadout() {
     constructionItems,
     events,
   );
-  const { tip, formation, casingShoe, latestEvent, deviation } = readout;
+  const { tip, formation, holeAtBit, casingShoe, latestEvent, deviation } = readout;
 
   if (!well) {
     return (
@@ -123,6 +123,18 @@ export function BitReadout() {
         <div>
           <dt>Junction</dt>
           <dd>{well.junction > 0 ? units.depth(well.junction, 0) : 'Surface'}</dd>
+        </div>
+        <div>
+          <dt>Hole at bit</dt>
+          <dd
+            title={
+              holeAtBit
+                ? `${holeAtBit.size}" hole section ${units.depth(holeAtBit.from, 0)}–${units.depth(holeAtBit.to, 0)}`
+                : 'No hole section at this depth'
+            }
+          >
+            {holeAtBit ? `${holeAtBit.size}"` : '—'}
+          </dd>
         </div>
         <div>
           <dt>Formation</dt>

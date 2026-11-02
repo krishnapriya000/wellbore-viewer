@@ -1,4 +1,4 @@
-import { itemsFor, type ConstructionItem } from '@/features/construction';
+import { holeAt, itemsFor, type ConstructionItem } from '@/features/construction';
 import { EVENT_TYPE_LABELS, type DrillEvent } from '@/features/events';
 import { formationAt, type Formation } from '@/features/geology';
 import { atMd, type SurveyPoint, type Well } from '@/features/survey';
@@ -23,6 +23,8 @@ export interface LatestEventReadout {
 export interface DrillingReadoutData {
   tip: SurveyPoint | null;
   formation: Formation | null;
+  /** Current hole section at the bit's MD, null when no hole section is defined there. */
+  holeAtBit: ConstructionItem | null;
   casingShoe: CasingShoeReadout | null;
   latestEvent: LatestEventReadout | null;
   deviation: Deviation | null;
@@ -48,6 +50,15 @@ export function getFormationAtBit(
 ): Formation | null {
   if (!tip) return null;
   return formationAt(formations, wellName, tip.md, tip.tvd);
+}
+
+/** Returns the hole section item that spans the bit's current MD, or null if no hole is defined there. */
+export function getHoleAtBit(
+  items: readonly ConstructionItem[],
+  wellName: string,
+  bitMd: number,
+): ConstructionItem | null {
+  return holeAt(items, wellName, bitMd);
 }
 
 /**
@@ -153,6 +164,7 @@ export function computeDrillingReadout(
   return {
     tip,
     formation: getFormationAtBit(formations, wellName, tip),
+    holeAtBit: tip ? getHoleAtBit(constructionItems, wellName, tip.md) : null,
     casingShoe: tip ? getRelevantCasingShoe(constructionItems, wellName, tip.md) : null,
     latestEvent: tip ? getLatestEventAtBit(events, wellName, tip.md) : null,
     deviation: getDeviationAtBit(tip, well?.plan ?? [], mode),

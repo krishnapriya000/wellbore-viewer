@@ -192,6 +192,40 @@ describe('<BitReadout>', () => {
     expect(screen.getByText('Ctr-to-ctr')).toBeInTheDocument();
   });
 
+  it('renders "Hole at bit" row reflecting the current hole section OD', () => {
+    // Add a hole section covering md=2000 so we can assert the size
+    act(() => {
+      useConstructionStore.setState({
+        items: [
+          {
+            id: 'hole-main',
+            kind: 'hole',
+            well: 'All',
+            from: 0,
+            to: 4000,
+            size: 12.25,
+            note: 'Main hole',
+          },
+          {
+            id: 'csg-1',
+            kind: 'casing',
+            well: 'All',
+            from: 0,
+            to: 1200,
+            size: 13.375,
+            note: '',
+          },
+        ],
+        version: 2,
+      });
+    });
+
+    render(<BitReadout />);
+    expect(screen.getByText('Hole at bit')).toBeInTheDocument();
+    // 12.25" hole covers md=2000
+    expect(screen.getByText('12.25"')).toBeInTheDocument();
+  });
+
   it('synchronizes when switching from ACTUAL to PLAN mode', async () => {
     const user = userEvent.setup();
     render(<BitReadout />);

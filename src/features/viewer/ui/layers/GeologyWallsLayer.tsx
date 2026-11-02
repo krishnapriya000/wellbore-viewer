@@ -2,26 +2,138 @@ import { Html } from '@react-three/drei';
 import { useEffect, useMemo } from 'react';
 import {
   BufferGeometry,
+  CanvasTexture,
   DoubleSide,
   Line,
+  LinearFilter,
   LineBasicMaterial,
   type Material,
+  Sprite,
+  SpriteMaterial,
   Vector3,
   type Box3,
 } from 'three';
 import { LithologySwatch, useGeologyStore } from '@/features/geology';
 import type { Well } from '@/features/survey';
-import { useSettings } from '@/shared/settings/settingsStore';
-import { formatNumber, toDisplay } from '@/shared/units/units';
 import {
   computeGeologyWalls,
   type MdOverrideDescriptor,
   type TvdWallDescriptor,
 } from '../../lib/geologyWalls';
 import { createLithologyTexture } from '../../lib/lithologyTexture';
+import { cssToken } from '../../lib/scene';
 
 const TILE_FT = 400; // 400 ft per pattern tile repeat, matching reference viewer
 
+// ---------------------------------------------------------------------------
+// Canvas-texture formation label sprite
+// ---------------------------------------------------------------------------
+// This replicates the original HTML viewer's textSprite() approach:
+// a THREE.Sprite is a true 3D scene object that stays attached to the geometry
+// as the camera rotates, pans, and zooms — unlike an <Html> DOM overlay.
+//
+// THREE.Sprite is always billboard (faces the camera) so the text remains
+// readable from any angle, exactly as in the original HTML.
+//
+// Returns null when canvas.getContext('2d') is unavailable (e.g. jsdom in tests).
+// ---------------------------------------------------------------------------
+function makeFormationSprite(
+  name: string,
+  hexColor: string,
+  height: number,
+  labelColor: string,
+): Sprite | null {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  // jsdom (test env) and some headless environments return null for getContext('2d').
+  if (!ctx) return null;
+
+  const fontSize = 52;
+  const font = `600 ${fontSize}px "Barlow Condensed", "Arial Narrow", sans-serif`;
+
+  // Measure text so the canvas is exactly wide enough
+  ctx.font = font;
+  const textW = Math.ceil(ctx.measureText(name).width) + 24;
+  canvas.width = textW;
+  canvas.height = 72;
+
+  // Re-set font after resize (canvas resize clears state)
+  ctx.font = font;
+
+  // Translucent formation-color pill background
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = hexColor;
+  const r = 10;
+  ctx.beginPath();
+  ctx.roundRect(2, 8, canvas.width - 4, canvas.height - 16, r);
+  ctx.fill();
+
+  // Opaque left accent bar in the formation color
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = hexColor;
+  ctx.beginPath();
+  ctx.roundRect(2, 8, 6, canvas.height - 16, [r, 0, 0, r]);
+  ctx.fill();
+
+  // Formation name text
+  ctx.font = font;
+  ctx.fillStyle = labelColor;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(name, 18, canvas.height / 2);
+
+  const texture = new CanvasTexture(canvas);
+  texture.minFilter = LinearFilter;
+
+  const sprite = new Sprite(
+    new SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
+  );
+
+  // Scale sprite in scene units: height = `height`, preserve canvas aspect
+  const aspect = canvas.width / canvas.height;
+  sprite.scale.set(height * aspect, height, 1);
+  sprite.renderOrder = 10;
+  return sprite;
+}
+
+// ---------------------------------------------------------------------------
+// FormationLabelSprite — React component wrapping a THREE.Sprite
+// ---------------------------------------------------------------------------
+function FormationLabelSprite({
+  name,
+  hexColor,
+  position,
+}: {
+  name: string;
+  hexColor: string;
+  position: [number, number, number];
+}) {
+  // 3 scene units ≈ 300 ft — visible but not overwhelming
+  const SPRITE_HEIGHT = 3;
+
+  const sprite = useMemo(() => {
+    if (typeof document === 'undefined') return null;
+    const labelColor = cssToken('--scene-label', hexColor);
+    return makeFormationSprite(name, hexColor, SPRITE_HEIGHT, labelColor);
+  }, [name, hexColor]);
+
+  // Clean up GPU resources when the sprite changes or the component unmounts
+  useEffect(() => {
+    return () => {
+      if (!sprite) return;
+      (sprite.material as SpriteMaterial).map?.dispose();
+      (sprite.material as SpriteMaterial).dispose();
+    };
+  }, [sprite]);
+
+  if (!sprite) return null;
+
+  sprite.position.set(...position);
+  return <primitive object={sprite} />;
+}
+
+// ---------------------------------------------------------------------------
+// TvdWallMesh — lithology wall surfaces for one TVD formation
+// ---------------------------------------------------------------------------
 function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
   // Texture scaling: consistent physical scale across layers
   const repNorthX = (wall.northWallSize[0] * 100) / TILE_FT;
@@ -124,10 +236,23 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
           side={DoubleSide}
         />
       </mesh>
+
+      {/* 6. Formation name — canvas-texture THREE.Sprite placed at the label position.
+              A sprite is a genuine 3D scene object. It stays on the formation surface
+              as the camera rotates/pans/zooms, unlike a <Html> DOM overlay card.
+              billboard (faces camera) keeps text readable from any angle. */}
+      <FormationLabelSprite
+        name={wall.name}
+        hexColor={wall.color.hex}
+        position={wall.labelPosition}
+      />
     </group>
   );
 }
 
+// ---------------------------------------------------------------------------
+// MdOverrideMesh — localized wellbore-specific formation box
+// ---------------------------------------------------------------------------
 function MdOverrideMesh({ override }: { override: MdOverrideDescriptor }) {
   const repX = Math.max(1, (override.size[0] * 100) / TILE_FT);
   const repY = Math.max(1, (override.size[1] * 100) / TILE_FT);
@@ -156,6 +281,8 @@ function MdOverrideMesh({ override }: { override: MdOverrideDescriptor }) {
         />
       </mesh>
 
+      {/* MD override still uses <Html> — these are localized per-well boxes,
+          not on a shared regional wall, and are always positioned above the box. */}
       <Html position={[0, override.size[1] / 2 + 1.2, 0]} center className="geology-override-badge">
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
           <LithologySwatch
@@ -173,14 +300,18 @@ function MdOverrideMesh({ override }: { override: MdOverrideDescriptor }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// GeologyWallsLayer — public component
+// ---------------------------------------------------------------------------
 /**
  * Visualizes 3D Geological Stratigraphic Formations and localized MD overrides.
  *
- * Characteristics:
- * - Back walls (North & West) and top horizon surfaces display distinct lithology-specific patterns.
- * - Slabs are translucent (depthWrite: false) so trajectories inside remain completely visible.
+ * - Back walls (North & West) and top horizon surfaces display lithology-specific patterns.
+ * - Slabs are translucent (depthWrite: false) so trajectories inside remain visible.
  * - Rebuilt only when formation store version, wells, or bounds change (never per frame).
- * - Full memory hygiene: Three.js textures and geometries are disposed upon update/unmount.
+ * - Formation name labels are THREE.Sprite canvas-texture objects (not HTML overlays),
+ *   so they are genuine 3D scene objects that stay attached to the formation surface.
+ * - Full memory hygiene: Three.js textures, geometries, and sprites are disposed on update/unmount.
  */
 export function GeologyWallsLayer({
   bounds,
@@ -193,7 +324,6 @@ export function GeologyWallsLayer({
 }) {
   const formations = useGeologyStore((s) => s.formations);
   const version = useGeologyStore((s) => s.version);
-  const unit = useSettings((s) => s.unit);
 
   const layout = useMemo(
     () => computeGeologyWalls(formations, bounds, wells),
@@ -205,42 +335,9 @@ export function GeologyWallsLayer({
 
   return (
     <group name="geology-walls-layer">
-      {/* TVD Regional Formations */}
+      {/* TVD Regional Formations — label sprite is inside TvdWallMesh group */}
       {layout.tvdWalls.map((wall) => (
-        <group key={wall.id}>
-          <TvdWallMesh wall={wall} />
-
-          {/* Formation label on the north wall near the top of each formation.
-              distanceFactor keeps the label pixel-size consistent as the camera zooms.
-              border-left color matches the formation lithology color for quick identification. */}
-          <Html
-            position={wall.labelPosition}
-            center
-            distanceFactor={120}
-            className="geology-wall-badge"
-          >
-            <span
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '1px',
-                borderLeft: `3px solid ${wall.color.hex}`,
-                paddingLeft: '4px',
-                margin: '-2px -6px',
-                padding: '2px 6px',
-              }}
-            >
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                <LithologySwatch lith={wall.dominantLith} baseColor={wall.color.hex} width={20} height={14} />
-                <span style={{ fontWeight: 600 }}>{wall.name}</span>
-              </span>
-              <small>
-                {formatNumber(toDisplay(wall.fromFt, unit), 0)} – {formatNumber(toDisplay(wall.toFt, unit), 0)}{' '}
-                {unit} ({wall.compSummary})
-              </small>
-            </span>
-          </Html>
-        </group>
+        <TvdWallMesh key={wall.id} wall={wall} />
       ))}
 
       {/* Localized MD Override Envelopes */}
