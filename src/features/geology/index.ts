@@ -26,6 +26,11 @@ export {
 } from './lib/sleevePath';
 export { drawStripLog, type StripLogDrawOptions } from './lib/stripLogDraw';
 export {
+  drawWellboreLithology,
+  type WellboreLithologyDrawColors,
+  type WellboreLithologyDrawOptions,
+} from './lib/wellboreLithologyDraw';
+export {
   computeMdIntervals,
   computeStripLogTicks,
   computeTvdIntervals,
@@ -38,3 +43,4 @@ export { FormationSchema, LITHOLOGIES, type Formation, type Lithology } from './
 export { FormationEditor } from './ui/FormationEditor';
 export { LithologySwatch, type LithologySwatchProps } from './ui/LithologySwatch';
 export { StripLog } from './ui/StripLog';
+export { WellboreLithology, type WellboreLithologyProps } from './ui/WellboreLithology';

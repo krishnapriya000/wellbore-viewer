@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AuthContextProvider, createMockAuthService, type Role } from '@/shared/auth';
@@ -177,19 +177,19 @@ describe('<FormationEditor>', () => {
       const legendRegion = screen.getByRole('region', { name: /usgs lithology patterns legend/i });
       expect(legendRegion).toBeInTheDocument();
 
-      // Check for distinct lithology patterns
-      expect(screen.getByText('Sandstone')).toBeInTheDocument();
-      expect(screen.getByText('Shale')).toBeInTheDocument();
-      expect(screen.getByText('Limestone')).toBeInTheDocument();
-      expect(screen.getByText('Dolomite')).toBeInTheDocument();
-      expect(screen.getByText('Siltstone')).toBeInTheDocument();
-      expect(screen.getByText('Coal')).toBeInTheDocument();
-      expect(screen.getByText('Anhydrite')).toBeInTheDocument();
-      expect(screen.getByText(/salt/i)).toBeInTheDocument();
-      expect(screen.getByText('Conglomerate')).toBeInTheDocument();
-      expect(screen.getByText('Marl')).toBeInTheDocument();
-      expect(screen.getByText('Chert')).toBeInTheDocument();
-      expect(screen.getByText('Basement')).toBeInTheDocument();
+      // Check for distinct lithology patterns inside the legend
+      expect(within(legendRegion).getByText('Sandstone')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Shale')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Limestone')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Dolomite')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Siltstone')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Coal')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Anhydrite')).toBeInTheDocument();
+      expect(within(legendRegion).getByText(/salt/i)).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Conglomerate')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Marl')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Chert')).toBeInTheDocument();
+      expect(within(legendRegion).getByText('Basement')).toBeInTheDocument();
 
       // Collapse legend
       await user.click(screen.getByRole('button', { name: /hide lithology legend/i }));

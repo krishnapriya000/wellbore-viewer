@@ -58,7 +58,11 @@ export function BitLayer({ color, visible = true }: { color: string; visible?: b
       const events = useEventsStore.getState().events;
       const unit = useSettings.getState().unit;
       const crossings = detectCrossings(points, events, well.name, drill.md, next.md, unit);
-      useDrilling.setState({ md: next.md, playing: next.playing });
+      useDrilling.setState((s) => ({
+        md: next.md,
+        playing: next.playing,
+        wellProgress: { ...s.wellProgress, [well.name]: next.md },
+      }));
       if (crossings.length) {
         drill.pushFeed(crossings);
       }

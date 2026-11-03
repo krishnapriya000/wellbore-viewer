@@ -12,6 +12,8 @@ interface DrillingState {
   activeWell: string | null;
   /** Bit measured depth, ft. Changes every frame — read with getState() or useThrottledStore, never a plain selector. */
   md: number;
+  /** Per-well drilled progress in ft MD, preserving each lateral's position when switching. */
+  wellProgress: Record<string, number>;
   mode: 'actual' | 'plan';
   playing: boolean;
   speedFtPerS: number;
@@ -29,16 +31,39 @@ let feedId = 0;
 export const useDrilling = create<DrillingState>()(
   subscribeWithSelector((set) => ({
     activeWell: null,
-    md: 0,
+    md: 5600,
+    wellProgress: { L1: 5600, L2: 0, L3: 0 },
     mode: 'actual',
     playing: true,
     speedFtPerS: 250,
     feed: [],
-    setActiveWell: (name, startMd = 0) => set({ activeWell: name, md: startMd, feed: [], playing: true }),
+    setActiveWell: (name, startMd) =>
+      set((s) => {
+        const progress = { ...s.wellProgress };
+        if (s.activeWell) {
+          progress[s.activeWell] = s.md;
+        }
+        const targetMd = startMd !== undefined ? startMd : (progress[name] ?? 0);
+        progress[name] = targetMd;
+        return {
+          activeWell: name,
+          md: targetMd,
+          wellProgress: progress,
+          feed: [],
+          playing: startMd !== undefined ? true : s.playing,
+        };
+      }),
     setMode: (mode) => set({ mode }),
     setPlaying: (playing) => set({ playing }),
     setSpeed: (speedFtPerS) => set({ speedFtPerS }),
-    restart: () => set({ md: 0, feed: [], playing: true }),
+    restart: () =>
+      set((s) => {
+        const progress = { ...s.wellProgress };
+        if (s.activeWell) {
+          progress[s.activeWell] = 0;
+        }
+        return { md: 0, wellProgress: progress, feed: [], playing: true };
+      }),
     pushFeed: (items) =>
       set((s) => ({
         feed: [...items.map((i) => ({ ...i, id: ++feedId })).reverse(), ...s.feed].slice(0, 4),

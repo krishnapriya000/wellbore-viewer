@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
 import { EventEditor } from '@/features/events';
-import { FormationEditor, StripLog } from '@/features/geology';
+import { FormationEditor, StripLog, WellboreLithology } from '@/features/geology';
 import { SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
@@ -47,6 +47,7 @@ export function ViewerPage() {
           <BitReadout />
         </ErrorBoundary>
         <ErrorBoundary name="Geology">
+          <WellboreLithology activeWell={activeWell} />
           <StripLog activeWell={activeWell} />
           <FormationEditor />
         </ErrorBoundary>

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { formationAt } from '../lib/formationAt';
+import { GEOLOGY_STORAGE_KEY } from '../lib/persistence';
 import { INITIAL_FORMATIONS, useGeologyStore } from './geologyStore';
 
 describe('geologyStore', () => {
@@ -217,13 +218,13 @@ describe('geologyStore', () => {
         comp: [{ lith: 'anhydrite', pct: 100 }],
       });
 
-      const raw = localStorage.getItem('wellbore_geology_v1');
+      const raw = localStorage.getItem(GEOLOGY_STORAGE_KEY);
       expect(raw).toBeTruthy();
       expect(raw).toContain('Persistent Caprock');
     });
 
     it('gracefully recovers from corrupt localStorage payload and falls back to sample data', () => {
-      localStorage.setItem('wellbore_geology_v1', 'NOT_VALID_JSON{:::');
+      localStorage.setItem(GEOLOGY_STORAGE_KEY, 'NOT_VALID_JSON{:::');
       useGeologyStore.getState().resetToSample();
       expect(useGeologyStore.getState().formations).toHaveLength(INITIAL_FORMATIONS.length);
     });

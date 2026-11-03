@@ -1,6 +1,6 @@
 import { FormationSchema, type Formation } from '../model/types';
 
-export const GEOLOGY_STORAGE_KEY = 'wellbore_geology_v1';
+export const GEOLOGY_STORAGE_KEY = 'wellbore_geology_v2';
 
 /**
  * Loads persisted geological formations from localStorage.
