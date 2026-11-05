@@ -236,6 +236,23 @@ select {
   cursor: pointer;
 }
 
+.viewport .hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--f-mono, monospace);
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  border: 1px solid var(--line);
+  padding: 3px 8px;
+  border-radius: 4px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 4;
+}
+
 .well-label {
   font: 700 1rem var(--f-display);
   white-space: nowrap;
@@ -246,6 +263,29 @@ select {
   font: 700 1.1rem var(--f-display);
   color: var(--scene-label);
   pointer-events: none;
+}
+
+.bit-active-badge {
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 8;
+}
+
+.bit-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--actual);
+  color: #ffffff;
+  font-family: var(--f-mono, monospace);
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  box-shadow: 0 2px 10px rgba(31, 79, 209, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.02em;
 }
 
 .bit-hud-label {
@@ -1027,4 +1067,200 @@ tr.new td {
   pointer-events: none;
   user-select: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Minimum curvature method explanation */
+.eq {
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--surface-2);
+  border-radius: 6px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+details summary {
+  cursor: pointer;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* Formations & lithology */
+.grid-fm {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 6px;
+  align-items: end;
+}
+
+.grid-fm2 {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 6px;
+  align-items: end;
+}
+
+.lith-pick {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.lith-pick select {
+  flex: 1;
+}
+
+canvas.sw {
+  width: 30px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  flex: none;
+  display: block;
+}
+
+.keygrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 6px 10px;
+}
+
+.keygrid div {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+
+.fm-table td canvas.sw {
+  width: 24px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.x {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 1rem;
+  padding: 0 4px;
+}
+
+.x:hover {
+  color: var(--crit);
+}
+
+@media (max-width: 420px) {
+  .grid-fm,
+  .grid-fm2 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* 3D Viewport active lateral identification pill */
+.bit-active-badge {
+  pointer-events: none;
+  user-select: none;
+}
+
+.bit-active-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  color: var(--actual);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-family: var(--f-display, 'Barlow Condensed', sans-serif);
+  font-size: 0.78rem;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.14);
+  white-space: nowrap;
+}
+
+/* 3D Viewport De-cluttering & Label Optimization (matches original HTML clean visualization) */
+/* 1. Hide overlapping landing target labels: wireframe indicator remains, text removed */
+.landing-plane-badge {
+  display: none !important;
+}
+
+/* 2. Hide localized MD override labels that obscure drilling trajectory */
+.geology-override-badge {
+  display: none !important;
+}
+
+/* 3. Hide HTML well labels: true 3D TextSprite renders clean billboard labels at well TD */
+.well-label {
+  display: none !important;
+}
+
+/* 4. Hide duplicate bit HUD text */
+.bit-hud-label {
+  display: none !important;
+}
+
+/* 5. Minimal, crisp TVD axis header */
+.tvd-header-badge {
+  font-family: var(--f-display, 'Barlow Condensed', sans-serif);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--scene-label);
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  padding: 1px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* 6. TVD tick labels: unobtrusive, crisp typography */
+.tvd-tick-label {
+  font-family: var(--f-display, 'Barlow Condensed', sans-serif);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--scene-label);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  transform: translateX(-4px);
+}
+
+/* 7. Dynamic TVD staff depth badge */
+.tvd-staff-badge {
+  font-family: var(--f-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--actual);
+  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* 8. Trajectory MD markers: small, semi-transparent pills positioned beside dots */
+.md-marker-label {
+  font-family: var(--f-display, 'Barlow Condensed', sans-serif);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--scene-label);
+  background: color-mix(in srgb, var(--surface) 75%, transparent);
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
 }

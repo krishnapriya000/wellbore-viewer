@@ -3,7 +3,7 @@ import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
 import { EventEditor } from '@/features/events';
 import { FormationEditor, StripLog, WellboreLithology } from '@/features/geology';
-import { SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
+import { McmExplanation, SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 // three.js + R3F load in their own chunk, after the shell has painted.
@@ -84,6 +84,7 @@ export function ViewerPage() {
             }}
           />
           <SurveyTable well={activeWell} bitStore={useDrilling} />
+          <McmExplanation />
         </ErrorBoundary>
       </aside>
     </main>

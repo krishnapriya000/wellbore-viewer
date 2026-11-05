@@ -1,10 +1,13 @@
-import { Html } from '@react-three/drei';
 import { useMemo } from 'react';
 import { Vector3, type Box3 } from 'three';
 import { useSettings } from '@/shared/settings/settingsStore';
 import { formatNumber, toDisplay } from '@/shared/units/units';
+import { TextSprite } from '../TextSprite';
 
-/** Surface grid sized to the wells, compass letters and a surface marker. Rebuilt only when bounds change. */
+/**
+ * Surface grid sized to the wells, compass text sprites, and surface drilling rig marker.
+ * Matches Multilateral Trajectory Viewer.html (lines 504-513).
+ */
 export function GridLayer({
   bounds,
   colors,
@@ -27,45 +30,54 @@ export function GridLayer({
 
   return (
     <group name="grid">
-      {/* key forces a fresh helper (and disposal of the old one) when colours or size change */}
+      {/* Surface grid helper */}
       <gridHelper
         key={`${size}${colors.grid}`}
         args={[size, size / 10, colors.grid, colors.grid2]}
         position={[cx, 0, cz]}
       />
+
+      {/* Compass direction letters ('N', 'S', 'E', 'W') billboard sprites */}
       {(
         [
-          ['N', 0, -1, 'North (-Z)'],
-          ['S', 0, 1, 'South (+Z)'],
-          ['E', 1, 0, 'East (+X)'],
-          ['W', -1, 0, 'West (-X)'],
+          ['N', 0, -1],
+          ['S', 0, 1],
+          ['E', 1, 0],
+          ['W', -1, 0],
         ] as const
-      ).map(([t, dx, dz, fullLabel]) => (
-        <Html
+      ).map(([t, dx, dz]) => (
+        <TextSprite
           key={t}
-          position={[cx + dx * (half + 6), 0.5, cz + dz * (half + 6)]}
-          center
-          className="compass"
-        >
-          <span className="compass-dir">{t}</span>
-          <span className="compass-axis">{fullLabel}</span>
-        </Html>
+          text={t}
+          color={colors.label}
+          height={5}
+          weight={700}
+          position={[cx + dx * (half + 5), 0.5, cz + dz * (half + 5)]}
+        />
       ))}
 
-      {/* Surface grid scale badge */}
-      <Html position={[cx + half - 4, 0.5, cz + half - 4]} center className="grid-scale-badge">
-        Grid: 1 sq = {gridCellDisplay} {unit}
-      </Html>
+      {/* Surface grid scale */}
+      <TextSprite
+        text={`Grid ${gridCellDisplay} ${unit}`}
+        color={colors.label}
+        height={2.4}
+        weight={500}
+        position={[cx - half + 1, 0.4, cz + half + 3]}
+        center={[0, 0.5]}
+      />
 
       {/* Drilling rig cone at surface location */}
       <mesh position={[0, 4.5, 0]}>
         <coneGeometry args={[2.4, 9, 4, 1, true]} />
         <meshBasicMaterial color={colors.label} wireframe />
       </mesh>
-      <Html position={[0, 10.5, 0]} center className="surface-label">
-        Surface location (0, 0)
-      </Html>
+      <TextSprite
+        text="Surface location"
+        color={colors.label}
+        height={2.6}
+        weight={500}
+        position={[0, 11, 0]}
+      />
     </group>
   );
 }
-

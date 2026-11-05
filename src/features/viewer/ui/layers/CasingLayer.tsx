@@ -191,7 +191,7 @@ function ConstructionSegmentMesh({ segment }: Readonly<{ segment: Construction3D
  * - Visually differentiates items triggering fit-check engineering warnings.
  * - Memoized on constructionVersion and survey dataKey; zero per-frame React state churn.
  */
-export function CasingLayer() {
+export function CasingLayer({ visible = true }: { visible?: boolean } = {}) {
   const items = useConstructionStore((s) => s.items);
   const constructionVersion = useConstructionStore((s) => s.version);
   const wells = useSurveyStore((s) => s.wells);
@@ -209,7 +209,7 @@ export function CasingLayer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- tracked by version keys
   }, [items, constructionVersion, wells, wellsVersionKey, order]);
 
-  if (segments.length === 0) return null;
+  if (!visible || segments.length === 0) return null;
 
   return (
     <group name="construction-casing-layer">

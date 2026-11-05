@@ -22,9 +22,17 @@ export function loadPersistedFormations(fallback: readonly Formation[]): Formati
     }
 
     const validated: Formation[] = [];
+    const seenIds = new Set<string>();
     for (const item of parsed) {
+      if (typeof item === 'object' && item !== null) {
+        const itemObj = item as Record<string, unknown>;
+        if (itemObj['id'] === 'temp-id' || !itemObj['id'] || seenIds.has(String(itemObj['id']))) {
+          itemObj['id'] = 'u' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+        }
+      }
       const res = FormationSchema.safeParse(item);
       if (res.success) {
+        seenIds.add(res.data.id);
         validated.push(res.data);
       }
     }

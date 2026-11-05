@@ -140,7 +140,7 @@ function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  return `fm-${++nextId}`;
+  return 'u' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7) + '-' + (++nextId);
 }
 
 export interface GeologyState {
@@ -165,9 +165,13 @@ export const useGeologyStore = create<GeologyState>()(
 
     addFormation(input) {
       const raw = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+      const rawId =
+        typeof raw['id'] === 'string' && raw['id'].trim() && raw['id'] !== 'temp-id'
+          ? raw['id'].trim()
+          : generateId();
       const candidate = {
         ...raw,
-        id: typeof raw['id'] === 'string' && raw['id'].trim() ? raw['id'] : generateId(),
+        id: rawId,
       };
       const parsed = FormationSchema.safeParse(candidate);
       if (!parsed.success) {

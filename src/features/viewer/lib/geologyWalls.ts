@@ -77,21 +77,22 @@ export function computeGeologyWalls(
   bounds: Box3,
   wells: readonly Well[],
 ): GeologyWallsLayout {
-  const size = bounds.getSize(new Vector3());
+  const c = bounds.getCenter(new Vector3());
+  const s = bounds.getSize(new Vector3());
+  const size = Math.ceil((Math.max(s.x, s.z) + 40) / 20) * 20;
+  const gx = Math.round(c.x / 10) * 10;
+  const gz = Math.round(c.z / 10) * 10;
+  const half = size / 2;
 
-  // Horizontal footprint padding around well trajectories (minimum 30 scene units)
-  const padX = Math.max(15, size.x * 0.15);
-  const padZ = Math.max(15, size.z * 0.15);
+  const minX = gx - half;
+  const maxX = gx + half;
+  const minZ = gz - half;
+  const maxZ = gz + half;
 
-  const minX = bounds.min.x === 0 && bounds.max.x === 0 ? -30 : bounds.min.x - padX;
-  const maxX = bounds.min.x === 0 && bounds.max.x === 0 ? 30 : bounds.max.x + padX;
-  const minZ = bounds.min.z === 0 && bounds.max.z === 0 ? -30 : bounds.min.z - padZ;
-  const maxZ = bounds.min.z === 0 && bounds.max.z === 0 ? 30 : bounds.max.z + padZ;
-
-  const width = Math.max(20, maxX - minX);
-  const depth = Math.max(20, maxZ - minZ);
-  const centerX = (minX + maxX) / 2;
-  const centerZ = (minZ + maxZ) / 2;
+  const width = size;
+  const depth = size;
+  const centerX = gx;
+  const centerZ = gz;
 
   const tvdWalls: TvdWallDescriptor[] = [];
   const mdOverrides: MdOverrideDescriptor[] = [];
@@ -136,9 +137,9 @@ export function computeGeologyWalls(
         comp: f.comp,
         position: [centerX, centerY, centerZ],
         size: [width, height, depth],
-        // Place label on the north back-wall, 20% from the top of the formation,
-        // centered horizontally — this is the most visible face in the default camera view.
-        labelPosition: [centerX, yTop - height * 0.2, minZ],
+        // Place label at northwest corner on the north back-wall, matching HTML line 538:
+        // s.position.set(gx - half + 1.5, yMid, gz - half + 0.3)
+        labelPosition: [minX + 1.5, centerY, minZ + 0.3],
         yTop,
         yBottom,
         northWallPosition,

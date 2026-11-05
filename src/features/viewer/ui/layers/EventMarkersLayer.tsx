@@ -72,7 +72,7 @@ function EventMarkerBadge({ marker }: { marker: PlacedEventMarker }) {
  * - Anchors 3D marker pins to wellbore trajectories with legible billboarding HTML badges.
  * - Shows event type, well, MD, and notes with color-coded category borders.
  */
-export function EventMarkersLayer() {
+export function EventMarkersLayer({ visible = true }: { visible?: boolean } = {}) {
   const events = useEventsStore((s) => s.events);
   const eventsVersion = useEventsStore((s) => s.version);
   const wells = useSurveyStore((s) => s.wells);
@@ -90,7 +90,7 @@ export function EventMarkersLayer() {
     [events, eventsVersion, wells, wellsVersion, unit],
   );
 
-  if (markers.length === 0) return null;
+  if (!visible || markers.length === 0) return null;
 
   return (
     <group name="event-markers-layer">

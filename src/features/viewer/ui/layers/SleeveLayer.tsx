@@ -13,19 +13,13 @@ function splitSegmentAtMd(
     return { drilled: seg, ahead: null };
   }
   if (seg.startMd >= splitMd) {
-    return { drilled: null, ahead: seg };
+    return { drilled: null, ahead: null };
   }
 
-  // Segment crosses splitMd. Split points between drilled and ahead-of-bit.
+  // Segment crosses splitMd. Only drilled portion gets a sleeve (matching reference HTML rebuildSleeve).
   const drilledPts = seg.points.filter((p) => p.md <= splitMd);
-  const aheadPts = seg.points.filter((p) => p.md >= splitMd);
-
-  const lastDrilled = drilledPts.at(-1);
-  const firstAhead = aheadPts[0];
-
-  if (lastDrilled && (!firstAhead || firstAhead.md > splitMd)) {
-    aheadPts.unshift(lastDrilled);
-  } else if (firstAhead && (!lastDrilled || lastDrilled.md < splitMd)) {
+  const firstAhead = seg.points.find((p) => p.md >= splitMd);
+  if (firstAhead && (!drilledPts.length || drilledPts[drilledPts.length - 1]!.md < splitMd)) {
     drilledPts.push(firstAhead);
   }
 
@@ -39,17 +33,7 @@ function splitSegmentAtMd(
         }
       : null;
 
-  const ahead: SleeveSegment | null =
-    aheadPts.length >= 2
-      ? {
-          ...seg,
-          id: `${seg.id}-ahead`,
-          startMd: splitMd,
-          points: aheadPts,
-        }
-      : null;
-
-  return { drilled, ahead };
+  return { drilled, ahead: null };
 }
 
 function SleeveSegmentMesh({ segment, isDrilled = true }: { segment: SleeveSegment; isDrilled?: boolean }) {
@@ -75,15 +59,13 @@ function SleeveSegmentMesh({ segment, isDrilled = true }: { segment: SleeveSegme
 
   return (
     <mesh name={`sleeve-${segment.id}-${isDrilled ? 'drilled' : 'ahead'}`}>
-      {/* Sleeve tube concentric around trajectory (radius 0.58 vs wellbore 0.42) */}
-      <tubeGeometry args={[curve, Math.min(600, Math.max(3, segment.points.length * 2)), 0.58, 8, false]} />
-      <meshStandardMaterial
+      {/* Sleeve tube concentric around trajectory (radius 1.45, opacity 0.6 matching HTML lines 595-596) */}
+      <tubeGeometry args={[curve, Math.min(600, Math.max(3, segment.points.length * 3)), 1.45, 12, false]} />
+      <meshBasicMaterial
         map={texture ?? undefined}
         color={texture ? 0xffffff : segment.color.hex}
-        roughness={isDrilled ? 0.45 : 0.85}
-        metalness={0.08}
         transparent
-        opacity={isDrilled ? 0.85 : 0.28}
+        opacity={0.6}
         depthWrite={false}
       />
     </mesh>

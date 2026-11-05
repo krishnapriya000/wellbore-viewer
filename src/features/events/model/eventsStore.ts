@@ -104,9 +104,13 @@ export const useEventsStore = create<EventsState>()(
 
     addEvent(input) {
       const raw = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
+      const rawId =
+        typeof raw['id'] === 'string' && raw['id'].trim() && raw['id'] !== 'temp-id'
+          ? raw['id'].trim()
+          : generateId();
       const candidate = {
         ...raw,
-        id: typeof raw['id'] === 'string' && raw['id'].trim() ? raw['id'].trim() : generateId(),
+        id: rawId,
       };
       const parsed = DrillEventSchema.safeParse(candidate);
       if (!parsed.success) {

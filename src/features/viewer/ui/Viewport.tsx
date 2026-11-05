@@ -52,10 +52,10 @@ export function Viewport() {
         <CameraRig view={view} bounds={bounds} fitKey={wells.map((w) => w.name).join('|')} />
         <GridLayer bounds={bounds} colors={colors} />
         <GeologyWallsLayer bounds={bounds} wells={wells} visible={layers.showGeology} />
-        {wells.map((w) => (
-          <SleeveLayer key={`sleeve-${w.name}`} well={w} visible={layers.showGeology} />
-        ))}
-        <CasingLayer />
+        {layers.showGeology && active && (
+          <SleeveLayer key={`sleeve-${active.name}`} well={active} visible={layers.showGeology} />
+        )}
+        <CasingLayer visible={false} />
         {wells.map((w) => (
           <PlanLayer
             key={w.name}
@@ -76,7 +76,7 @@ export function Viewport() {
           />
         )}
         <BitLayer color={colors.actual} visible={layers.showActual} />
-        <EventMarkersLayer />
+        <EventMarkersLayer visible={false} />
         <ScaleLayer
           bounds={bounds}
           well={active}
@@ -108,18 +108,16 @@ export function Viewport() {
           <div className="seg">
             <button
               type="button"
-              aria-pressed={layers.showGeology}
-              onClick={() => layers.setShowGeology((v) => !v)}
-              title="Toggle 3D geological formations and lithology patterns"
+              className={autoRotate ? 'active' : ''}
+              aria-pressed={autoRotate}
+              onClick={() => setAutoRotate((v) => !v)}
             >
-              Formations
-            </button>
-            <button type="button" aria-pressed={autoRotate} onClick={() => setAutoRotate((v) => !v)}>
               Rotate
             </button>
           </div>
         </div>
       </div>
+      <div className="hint">Drag to rotate · scroll or pinch to zoom · right-drag to pan</div>
       <LayersPanel
         wells={wells}
         colors={colors}

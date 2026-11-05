@@ -1,108 +1,51 @@
 import { useId, useState, type FormEvent } from 'react';
+import { useDrilling } from '@/features/drilling';
 import { useSurveyStore } from '@/features/survey';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import { useUnits } from '@/shared/units/useUnits';
-import { blendLithologyColor, dominantLithology, LITHOLOGY_META_LIST } from '../lib/lithologyColors';
+import { blendLithologyColor, dominantLithology, LITHOLOGY_COLORS } from '../lib/lithologyColors';
 import { useGeologyStore } from '../model/geologyStore';
-import { FormationSchema, LITHOLOGIES, type Formation, type Lithology } from '../model/types';
+import { FormationSchema, type Lithology } from '../model/types';
 import { LithologySwatch } from './LithologySwatch';
 
-interface CompRow {
-  lith: Lithology;
-  pct: number;
-}
+const LITHS: { id: Lithology; name: string; base: string }[] = [
+  { id: 'sandstone', name: 'Sandstone', base: '#f1d36e' },
+  { id: 'shale', name: 'Shale', base: '#97a596' },
+  { id: 'siltstone', name: 'Siltstone', base: '#d8bc8f' },
+  { id: 'limestone', name: 'Limestone', base: '#86b6dc' },
+  { id: 'dolomite', name: 'Dolomite', base: '#b9a3dc' },
+  { id: 'marl', name: 'Marl', base: '#c5d39b' },
+  { id: 'coal', name: 'Coal', base: '#2f2f2f' },
+  { id: 'anhydrite', name: 'Anhydrite', base: '#e9b9d2' },
+  { id: 'salt', name: 'Salt', base: '#dfe8f4' },
+  { id: 'conglomerate', name: 'Conglomerate', base: '#eaa65e' },
+  { id: 'chert', name: 'Chert', base: '#e7e1c6' },
+  { id: 'basement', name: 'Granite / basement', base: '#e1907f' },
+];
 
-const DEFAULT_COMP: CompRow[] = [{ lith: 'sandstone', pct: 100 }];
+const LITH_MAP = Object.fromEntries(LITHS.map((l) => [l.id, l]));
 
 export function FormationEditor() {
   const formations = useGeologyStore((s) => s.formations);
   const addFormation = useGeologyStore((s) => s.addFormation);
-  const updateFormation = useGeologyStore((s) => s.updateFormation);
   const removeFormation = useGeologyStore((s) => s.removeFormation);
   const resetToSample = useGeologyStore((s) => s.resetToSample);
-  const toggleVisibility = useGeologyStore((s) => s.toggleVisibility);
 
   const wells = useSurveyStore((s) => s.order);
+  const activeWell = useDrilling((s) => s.activeWell);
   const units = useUnits();
   const formId = useId();
 
-  // Editing state: null when adding a new formation, or the Formation object being edited
-  const [editingId, setEditingId] = useState<string | null>(null);
-
-  // Form field state
-  const [name, setName] = useState('');
+  // Form field state - default values matching original HTML (lines 207-218 & 807)
   const [refType, setRefType] = useState<'TVD' | 'MD'>('TVD');
-  const [well, setWell] = useState('All');
-  const [fromStr, setFromStr] = useState('');
-  const [toStr, setToStr] = useState('');
-  const [comp, setComp] = useState<CompRow[]>(DEFAULT_COMP);
-
-  // Toggle display of USGS lithology legend
-  const [showLegend, setShowLegend] = useState(false);
-
-  // Inline delete confirmation state
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [fromStr, setFromStr] = useState('6100');
+  const [toStr, setToStr] = useState('6140');
+  const [name, setName] = useState('Coal stringer');
+  const [selectedLith, setSelectedLith] = useState<Lithology>('coal');
 
   // Status message
   const [msg, setMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
-
-  const totalPct = comp.reduce((acc, c) => acc + (Number(c.pct) || 0), 0);
-
-  function resetForm(keepMsg = false) {
-    setEditingId(null);
-    setName('');
-    setRefType('TVD');
-    setWell('All');
-    setFromStr('');
-    setToStr('');
-    setComp(DEFAULT_COMP);
-    if (!keepMsg) setMsg(null);
-  }
-
-  function startEdit(f: Formation) {
-    setEditingId(f.id);
-    setName(f.name);
-    setRefType(f.ref);
-    setWell(f.well);
-    // Display in active depth unit
-    setFromStr(formatNumber(toDisplay(f.from, units.unit), 1).replace(/,/g, ''));
-    setToStr(formatNumber(toDisplay(f.to, units.unit), 1).replace(/,/g, ''));
-    setComp(f.comp.map((c) => ({ lith: c.lith, pct: c.pct })));
-    setMsg(null);
-  }
-
-  function handleRefChange(newRef: 'TVD' | 'MD') {
-    setRefType(newRef);
-    if (newRef === 'TVD') {
-      setWell('All');
-    } else if (well === 'All' && wells.length > 0) {
-      setWell(wells[0] ?? 'L1');
-    }
-  }
-
-  function handleAddCompRow() {
-    if (comp.length >= 3) return;
-    const remaining = Math.max(0, 100 - totalPct);
-    setComp([...comp, { lith: 'shale', pct: remaining }]);
-  }
-
-  function handleRemoveCompRow(index: number) {
-    if (comp.length <= 1) return;
-    setComp(comp.filter((_, i) => i !== index));
-  }
-
-  function handleCompChange(index: number, field: 'lith' | 'pct', value: string | number) {
-    setComp(
-      comp.map((row, i) => {
-        if (i !== index) return row;
-        return {
-          ...row,
-          [field]: field === 'pct' ? Number(value) : value,
-        };
-      }),
-    );
-  }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -112,7 +55,17 @@ export function FormationEditor() {
     const toNum = Number(toStr);
 
     if (fromStr.trim() === '' || toStr.trim() === '' || isNaN(fromNum) || isNaN(toNum)) {
-      setMsg({ kind: 'err', text: 'From and To depths must be valid numbers.' });
+      setMsg({ kind: 'err', text: 'Enter From and To depths in feet.' });
+      return;
+    }
+
+    if (toNum <= fromNum) {
+      setMsg({ kind: 'err', text: 'To must be deeper than From.' });
+      return;
+    }
+
+    if (!name.trim()) {
+      setMsg({ kind: 'err', text: 'Give the formation a name.' });
       return;
     }
 
@@ -120,14 +73,28 @@ export function FormationEditor() {
     const fromFt = units.parseDepth(fromNum);
     const toFt = units.parseDepth(toNum);
 
+    // When MD, target the currently active wellbore, matching HTML line 817
+    const targetWell =
+      refType === 'TVD'
+        ? 'All'
+        : activeWell && wells.includes(activeWell)
+          ? activeWell
+          : wells[0] ?? 'L1';
+
+    if (refType === 'MD' && !targetWell) {
+      setMsg({ kind: 'err', text: 'Load a wellbore before adding MD intervals.' });
+      return;
+    }
+
+    const id = 'u' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
     const candidate = {
-      id: editingId ?? 'temp-id',
+      id,
       name: name.trim(),
       ref: refType,
-      well: refType === 'TVD' ? 'All' : well.trim(),
+      well: targetWell,
       from: fromFt,
       to: toFt,
-      comp: comp.map((c) => ({ lith: c.lith, pct: Number(c.pct) })),
+      comp: [{ lith: selectedLith, pct: 100 }],
     };
 
     const parsed = FormationSchema.safeParse(candidate);
@@ -136,218 +103,50 @@ export function FormationEditor() {
       return;
     }
 
-    if (editingId) {
-      const res = updateFormation(editingId, candidate);
-      if (!res.ok) {
-        setMsg({ kind: 'err', text: res.error });
-        return;
-      }
-      resetForm(true);
-      setMsg({ kind: 'ok', text: `Updated formation "${parsed.data.name}".` });
-    } else {
-      const res = addFormation(candidate);
-      if (!res.ok) {
-        setMsg({ kind: 'err', text: res.error });
-        return;
-      }
-      resetForm(true);
-      setMsg({ kind: 'ok', text: `Added formation "${parsed.data.name}".` });
+    const res = addFormation(candidate);
+    if (!res.ok) {
+      setMsg({ kind: 'err', text: res.error });
+      return;
     }
+
+    const lithName = LITH_MAP[selectedLith]?.name ?? selectedLith;
+    const fromFmt = formatNumber(fromNum, 0);
+    const toFmt = formatNumber(toNum, 0);
+    setMsg({
+      kind: 'ok',
+      text: `Added ${name.trim()} (${lithName}) ${fromFmt}–${toFmt} ft ${refType}${refType === 'MD' ? ' on ' + targetWell : ''}.`,
+    });
   }
 
-  function handleDelete(id: string, fName: string) {
+  function handleDelete(id: string) {
     const res = removeFormation(id);
-    setConfirmDeleteId(null);
     if (res.ok) {
-      if (editingId === id) resetForm(true);
-      setMsg({ kind: 'ok', text: `Deleted formation "${fName}".` });
+      setMsg({ kind: 'ok', text: 'Removed interval.' });
     } else {
       setMsg({ kind: 'err', text: res.error });
     }
   }
 
+  function handleRestoreSample() {
+    resetToSample();
+    setMsg({ kind: 'ok', text: 'Sample formations restored.' });
+  }
+
+  // Sorted formations matching HTML line 794: TVD first, then MD by from-depth
+  const sortedFormations = formations
+    .slice()
+    .sort((a, b) => (a.ref === b.ref ? a.from - b.from : a.ref === 'TVD' ? -1 : 1));
+
   return (
     <section className="block" aria-labelledby={`${formId}-title`}>
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <h2 id={`${formId}-title`} style={{ margin: 0 }}>
-          Formations & Lithology <span className="pill idle">{formations.length}</span>
-        </h2>
-        <span className="pill warn" title="Synthetic stratigraphy for demonstration purposes">
-          DEMO / SAMPLE GEOLOGY
-        </span>
-      </div>
-      <p className="hint" style={{ fontSize: '0.74rem', margin: '4px 0 10px 0', color: 'var(--muted)' }}>
-        Sample stratigraphy loaded for visualization. Use the editor below to configure actual well tops and
-        lithology.
-      </p>
-
-      {/* 1. Existing formations list */}
-      <div className="formation-list" role="region" aria-label="Formation layers">
-        {formations.length === 0 ? (
-          <p className="hint">
-            No formations defined. Click &quot;Reset Sample Formations&quot; below or add a new formation.
-          </p>
-        ) : (
-          formations.map((f) => (
-            <div
-              key={f.id}
-              className="formation-item"
-              style={{
-                opacity: f.visible === false ? 0.55 : 1,
-                transition: 'opacity 0.15s ease',
-              }}
-            >
-              <div className="formation-header">
-                <div className="row" style={{ alignItems: 'center', gap: '6px' }}>
-                  <button
-                    type="button"
-                    className={`btn small ${f.visible === false ? 'dimmed' : ''}`}
-                    onClick={() => toggleVisibility(f.id)}
-                    aria-label={f.visible === false ? `Show ${f.name}` : `Hide ${f.name}`}
-                    aria-pressed={f.visible !== false}
-                    title={
-                      f.visible === false
-                        ? 'Show formation in 3D & strip log'
-                        : 'Hide formation in 3D & strip log'
-                    }
-                    style={{ padding: '1px 6px', fontSize: '0.72rem' }}
-                  >
-                    {f.visible === false ? '👁 Off' : '👁 On'}
-                  </button>
-                  <LithologySwatch
-                    lith={dominantLithology(f.comp)}
-                    baseColor={blendLithologyColor(f.comp).hex}
-                    width={22}
-                    height={14}
-                    title={`${f.name} (${dominantLithology(f.comp)})`}
-                  />
-                  <strong>{f.name}</strong>
-                  {f.visible === false && (
-                    <span className="pill idle" style={{ fontSize: '0.62rem' }}>
-                      Hidden
-                    </span>
-                  )}
-                </div>
-                <span className={`pill ${f.ref === 'TVD' ? 'ok' : 'warn'}`}>
-                  {f.ref} · {f.well}
-                </span>
-              </div>
-              <div className="formation-meta">
-                <span>
-                  {units.depth(f.from)} – {units.depth(f.to)}
-                </span>
-                <span className="formation-comp">{f.comp.map((c) => `${c.lith} ${c.pct}%`).join(', ')}</span>
-              </div>
-              <Authorized permission="geology:edit">
-                <div className="formation-actions">
-                  <button
-                    type="button"
-                    className="btn small"
-                    onClick={() => startEdit(f)}
-                    aria-label={`Edit ${f.name}`}
-                  >
-                    Edit
-                  </button>
-                  {confirmDeleteId === f.id ? (
-                    <span className="row" style={{ gap: '4px' }}>
-                      <button
-                        type="button"
-                        className="btn small"
-                        style={{ borderColor: 'var(--crit)', color: 'var(--crit)' }}
-                        onClick={() => handleDelete(f.id, f.name)}
-                      >
-                        Confirm
-                      </button>
-                      <button type="button" className="btn small" onClick={() => setConfirmDeleteId(null)}>
-                        Cancel
-                      </button>
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      className="btn small"
-                      onClick={() => setConfirmDeleteId(f.id)}
-                      aria-label={`Delete ${f.name}`}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </div>
-              </Authorized>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* 2. Collapsible USGS Lithology Pattern Legend (12 Types) */}
-      <div style={{ marginTop: '10px', marginBottom: '10px' }}>
-        <button
-          type="button"
-          className="btn small"
-          onClick={() => setShowLegend((v) => !v)}
-          aria-expanded={showLegend}
-          aria-controls={`${formId}-legend`}
-          style={{
-            fontSize: '0.75rem',
-            width: '100%',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>{showLegend ? '▼ Hide Lithology Legend' : '▶ Show USGS Lithology Legend (12 Types)'}</span>
-          <span className="pill idle" style={{ fontSize: '0.65rem' }}>
-            12 Standard Patterns
-          </span>
+      <h2>
+        Formations &amp; lithology{' '}
+        <button type="button" className="btn small" id="fmSample" onClick={handleRestoreSample}>
+          Restore sample
         </button>
-        {showLegend && (
-          <div
-            id={`${formId}-legend`}
-            role="region"
-            aria-label="USGS Lithology Patterns Legend"
-            style={{
-              marginTop: '6px',
-              padding: '8px',
-              background: 'var(--surface-sunken, rgba(0,0,0,0.15))',
-              border: '1px solid var(--line)',
-              borderRadius: '6px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
-              gap: '6px',
-            }}
-          >
-            {LITHOLOGY_META_LIST.map((meta) => (
-              <div
-                key={meta.lith}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.72rem',
-                  padding: '4px 6px',
-                  borderRadius: '4px',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--line)',
-                }}
-              >
-                <LithologySwatch
-                  lith={meta.lith}
-                  baseColor={meta.color.hex}
-                  width={28}
-                  height={18}
-                  title={`${meta.name} - ${meta.patternName}`}
-                />
-                <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2, minWidth: 0 }}>
-                  <strong style={{ textTransform: 'capitalize' }}>{meta.name}</strong>
-                  <span style={{ color: 'var(--muted)', fontSize: '0.64rem' }}>{meta.patternName}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      </h2>
 
-      {/* 2. Formation Add/Edit Form (Role-Gated) */}
+      {/* Formation Add Form (Role-Gated) */}
       <Authorized
         permission="geology:edit"
         fallback={
@@ -356,170 +155,189 @@ export function FormationEditor() {
           </p>
         }
       >
-        <form
-          className="formation-form"
-          onSubmit={handleSubmit}
-          aria-label={editingId ? 'Edit formation' : 'Add formation'}
-        >
-          <div className="row" style={{ justifyContent: 'space-between' }}>
-            <strong style={{ fontSize: '0.85rem', color: 'var(--muted)', textTransform: 'uppercase' }}>
-              {editingId ? `Edit Formation: ${name}` : 'Add New Formation'}
-            </strong>
-            {editingId && (
-              <button type="button" className="btn small" onClick={() => resetForm()}>
-                Cancel Edit
-              </button>
-            )}
-          </div>
-
-          <label className="field">
-            Formation Name
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Target Sand"
-              required
-              maxLength={80}
-            />
-          </label>
-
-          <div className="grid4" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
+        <form className="formation-form" onSubmit={handleSubmit} aria-label="Add formation">
+          <div className="grid-fm">
             <label className="field">
-              Reference
-              <select value={refType} onChange={(e) => handleRefChange(e.target.value as 'TVD' | 'MD')}>
-                <option value="TVD">TVD (Layer across field)</option>
-                <option value="MD">MD (Wellbore override)</option>
+              Depth reference
+              <select
+                id="fmRef"
+                value={refType}
+                onChange={(e) => setRefType(e.target.value as 'TVD' | 'MD')}
+              >
+                <option value="TVD">TVD — layer across field</option>
+                <option value="MD">MD — along drilling wellbore</option>
               </select>
             </label>
-
             <label className="field">
-              Wellbore
-              {refType === 'TVD' ? (
-                <input type="text" value="All" disabled />
-              ) : (
-                <select value={well} onChange={(e) => setWell(e.target.value)}>
-                  {wells.map((w) => (
-                    <option key={w} value={w}>
-                      {w}
-                    </option>
-                  ))}
-                  {!wells.includes(well) && well !== 'All' && <option value={well}>{well}</option>}
-                </select>
-              )}
-            </label>
-          </div>
-
-          <div className="grid4" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-            <label className="field">
-              From ({units.unit})
+              From {units.unit}
               <input
                 type="number"
-                step="0.1"
-                min="0"
+                id="fmFrom"
+                step="1"
+                inputMode="decimal"
                 value={fromStr}
                 onChange={(e) => setFromStr(e.target.value)}
-                placeholder="Top depth"
                 required
               />
             </label>
-
             <label className="field">
-              To ({units.unit})
+              To {units.unit}
               <input
                 type="number"
-                step="0.1"
-                min="0"
+                id="fmTo"
+                step="1"
+                inputMode="decimal"
                 value={toStr}
                 onChange={(e) => setToStr(e.target.value)}
-                placeholder="Base depth"
                 required
               />
             </label>
           </div>
 
-          <div className="field">
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Lithology Mix</span>
-              <span
-                className={`pill ${Math.abs(totalPct - 100) < 0.5 ? 'ok' : 'warn'}`}
-                style={{ fontSize: '0.65rem' }}
-              >
-                Total: {totalPct}% {Math.abs(totalPct - 100) >= 0.5 && '(must = 100%)'}
-              </span>
-            </div>
-
-            {comp.map((row, idx) => (
-              <div key={idx} className="row" style={{ alignItems: 'center', marginTop: '4px', gap: '6px' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flex: 2 }}>
-                  <LithologySwatch lith={row.lith} width={28} height={20} title={row.lith} />
-                  <select
-                    value={row.lith}
-                    onChange={(e) => handleCompChange(idx, 'lith', e.target.value)}
-                    style={{ flex: 1 }}
-                    aria-label={`Lithology ${idx + 1}`}
-                  >
-                    {LITHOLOGIES.map((lith) => (
-                      <option key={lith} value={lith}>
-                        {lith}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  step="1"
-                  value={row.pct || ''}
-                  onChange={(e) => handleCompChange(idx, 'pct', e.target.value)}
-                  style={{ flex: 1 }}
-                  placeholder="%"
-                  aria-label={`Percentage ${idx + 1}`}
-                  required
+          <div className="grid-fm2">
+            <label className="field">
+              Formation name
+              <input
+                type="text"
+                id="fmName"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+                maxLength={80}
+              />
+            </label>
+            <label className="field">
+              Lithology symbol
+              <span className="lith-pick">
+                <select
+                  id="fmLith"
+                  value={selectedLith}
+                  onChange={(e) => setSelectedLith(e.target.value as Lithology)}
+                >
+                  {LITHS.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                    </option>
+                  ))}
+                </select>
+                <LithologySwatch
+                  id="fmSw"
+                  lith={selectedLith}
+                  baseColor={LITHOLOGY_COLORS[selectedLith]?.hex}
+                  width={60}
+                  height={44}
+                  className="sw"
                 />
-                <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>%</span>
-
-                {comp.length > 1 && (
-                  <button
-                    type="button"
-                    className="btn small"
-                    onClick={() => handleRemoveCompRow(idx)}
-                    title="Remove lithology"
-                    aria-label={`Remove lithology ${idx + 1}`}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-            ))}
-
-            {comp.length < 3 && (
-              <button
-                type="button"
-                className="btn small"
-                onClick={handleAddCompRow}
-                style={{ marginTop: '6px', alignSelf: 'flex-start' }}
-              >
-                + Add Lithology
-              </button>
-            )}
+              </span>
+            </label>
           </div>
 
-          <div className="row" style={{ marginTop: '6px' }}>
-            <button className="btn primary" type="submit">
-              {editingId ? 'Save Changes' : 'Add Formation'}
+          <div className="row-flex">
+            <button className="btn primary" type="submit" id="fmAdd">
+              Add interval
             </button>
-            <button type="button" className="btn" onClick={() => void resetToSample()}>
-              Reset Sample Formations
-            </button>
+            <p className={`msg ${msg?.kind ?? ''}`} id="fmMsg" role="status">
+              {msg?.text}
+            </p>
           </div>
         </form>
       </Authorized>
 
-      <p className={`msg ${msg?.kind ?? ''}`} role="status">
-        {msg?.text}
+      {/* Formations Table matching HTML layout */}
+      <div
+        className="table-wrap fm-table"
+        style={{ maxHeight: '240px' }}
+        role="region"
+        aria-label="Formation layers"
+      >
+        <table>
+          <thead>
+            <tr>
+              <th>From</th>
+              <th>To</th>
+              <th>Ref</th>
+              <th className="l">Formation</th>
+              <th className="l">Lithology</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="fmBody">
+            {sortedFormations.length === 0 ? (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'left' }}>
+                  No intervals yet. Add one above.
+                </td>
+              </tr>
+            ) : (
+              sortedFormations.map((f) => {
+                const dominant = dominantLithology(f.comp);
+                const lithInfo = LITH_MAP[dominant] ?? { name: dominant };
+                return (
+                  <tr key={f.id}>
+                    <td>{formatNumber(toDisplay(f.from, units.unit), 0)}</td>
+                    <td>{formatNumber(toDisplay(f.to, units.unit), 0)}</td>
+                    <td>
+                      {f.ref}
+                      {f.ref === 'MD' ? ' · ' + f.well : ''}
+                    </td>
+                    <td className="l">{f.name}</td>
+                    <td className="l">
+                      <LithologySwatch
+                        lith={dominant}
+                        baseColor={blendLithologyColor(f.comp).hex}
+                        width={24}
+                        height={16}
+                        className="sw"
+                        title={`${f.name} (${dominant})`}
+                      />
+                      <span>{lithInfo.name}</span>
+                    </td>
+                    <td style={{ textAlign: 'center', width: '28px' }}>
+                      <Authorized permission="geology:edit">
+                        <button
+                          type="button"
+                          className="x"
+                          onClick={() => handleDelete(f.id)}
+                          aria-label={`Delete ${f.name}`}
+                          title={`Delete ${f.name}`}
+                        >
+                          ×
+                        </button>
+                      </Authorized>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* USGS Lithology Pattern Legend (12 Types) - Always visible matching HTML lines 223-224 */}
+      <div
+        className="keygrid"
+        id="lithKey"
+        role="region"
+        aria-label="USGS Lithology Patterns Legend"
+      >
+        {LITHS.map((l) => (
+          <div key={l.id}>
+            <LithologySwatch
+              lith={l.id}
+              width={48}
+              height={32}
+              className="sw"
+              style={{ width: '48px', height: '32px' }}
+            />
+            <span>{l.name}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="hint-text">
+        TVD intervals are layers across the whole field and appear on the back walls of the 3D block. MD intervals
+        apply only to the drilling wellbore and override the layer at that depth, for example a fault block or a
+        stringer seen in cuttings.
       </p>
     </section>
   );

@@ -84,8 +84,9 @@ export function EventEditor() {
     // Convert display unit to internal feet
     const mdFt = units.parseDepth(mdNum);
 
+    const id = editingId ?? ('ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
     const candidate = {
-      id: editingId ?? 'temp-id',
+      id,
       well: well.trim() || 'L1',
       md: mdFt,
       type,

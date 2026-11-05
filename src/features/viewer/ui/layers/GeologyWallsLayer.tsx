@@ -150,13 +150,6 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
     [wall.dominantLith, repWestX, repWestY, wall.color.hex],
   );
 
-  const repTopX = (wall.topPlaneSize[0] * 100) / TILE_FT;
-  const repTopY = (wall.topPlaneSize[1] * 100) / TILE_FT;
-  const topTexture = useMemo(
-    () => createLithologyTexture(wall.dominantLith, repTopX, repTopY, wall.color.hex),
-    [wall.dominantLith, repTopX, repTopY, wall.color.hex],
-  );
-
   // Horizon boundary wireframe loop around the formation top
   const horizonLine = useMemo(() => {
     const pts = wall.horizonLoop.map(([x, y, z]) => new Vector3(x, y, z));
@@ -164,7 +157,7 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
     const mat = new LineBasicMaterial({
       color: wall.color.hex,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.45,
       depthWrite: false,
     });
     return new Line(geo, mat);
@@ -175,11 +168,10 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
     return () => {
       northTexture?.dispose();
       westTexture?.dispose();
-      topTexture?.dispose();
       horizonLine.geometry.dispose();
       (horizonLine.material as Material).dispose();
     };
-  }, [northTexture, westTexture, topTexture, horizonLine]);
+  }, [northTexture, westTexture, horizonLine]);
 
   return (
     <group name={`tvd-wall-${wall.name}`}>
@@ -190,7 +182,7 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
           map={northTexture ?? undefined}
           color={northTexture ? 0xffffff : wall.color.hex}
           transparent
-          opacity={0.52}
+          opacity={0.42}
           side={DoubleSide}
           depthWrite={false}
         />
@@ -203,44 +195,16 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
           map={westTexture ?? undefined}
           color={westTexture ? 0xffffff : wall.color.hex}
           transparent
-          opacity={0.52}
+          opacity={0.42}
           side={DoubleSide}
           depthWrite={false}
         />
       </mesh>
 
-      {/* 3. Top horizon surface plane with lithology pattern */}
-      <mesh position={wall.topPlanePosition} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={wall.topPlaneSize} />
-        <meshBasicMaterial
-          map={topTexture ?? undefined}
-          color={topTexture ? 0xffffff : wall.color.hex}
-          transparent
-          opacity={0.25}
-          side={DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* 4. Stratigraphic horizon boundary outline across the field */}
+      {/* 3. Stratigraphic horizon boundary outline across the field */}
       <primitive object={horizonLine} />
 
-      {/* 5. Subtle volumetric 3D slab tint */}
-      <mesh position={wall.position}>
-        <boxGeometry args={wall.size} />
-        <meshBasicMaterial
-          color={wall.color.hex}
-          transparent
-          opacity={0.06}
-          depthWrite={false}
-          side={DoubleSide}
-        />
-      </mesh>
-
-      {/* 6. Formation name — canvas-texture THREE.Sprite placed at the label position.
-              A sprite is a genuine 3D scene object. It stays on the formation surface
-              as the camera rotates/pans/zooms, unlike a <Html> DOM overlay card.
-              billboard (faces camera) keeps text readable from any angle. */}
+      {/* 4. Formation name — canvas-texture THREE.Sprite placed at the label position */}
       <FormationLabelSprite
         name={wall.name}
         hexColor={wall.color.hex}

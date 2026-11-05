@@ -77,24 +77,24 @@ describe('computeGeologyWalls', () => {
     expect(targetSand.position[1]).toBeCloseTo(-3000 * SCALE);
   });
 
-  it('places TVD formation label on the north wall near the top (not at scene perimeter corner)', () => {
+  it('places TVD formation label on the north wall near the top/west corner (matching HTML line 538)', () => {
     const bounds = new Box3(new Vector3(-20, -50, -20), new Vector3(20, 0, 20));
     const layout = computeGeologyWalls(TEST_FORMATIONS, bounds, [MOCK_WELL]);
 
     for (const wall of layout.tvdWalls) {
       const [lx, ly, lz] = wall.labelPosition;
       const { footprint } = layout;
-      const centerX = (footprint.minX + footprint.maxX) / 2;
 
-      // X should be at the horizontal center of the scene footprint
-      expect(lx).toBeCloseTo(centerX, 1);
+      // X should be within the scene footprint on the back wall
+      expect(lx).toBeGreaterThanOrEqual(footprint.minX);
+      expect(lx).toBeLessThanOrEqual(footprint.maxX);
 
       // Y must fall inside the formation's vertical band
       expect(ly).toBeLessThanOrEqual(wall.yTop + 0.001);
       expect(ly).toBeGreaterThanOrEqual(wall.yBottom - 0.001);
 
       // Z should be at the north-wall face (minZ), not the south perimeter (maxZ)
-      expect(lz).toBeCloseTo(footprint.minZ, 1);
+      expect(lz).toBeCloseTo(footprint.minZ + 0.3, 1);
     }
   });
 

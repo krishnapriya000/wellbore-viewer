@@ -1,6 +1,7 @@
+import { Html } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef } from 'react';
-import type { Mesh } from 'three';
+import type { Group, Mesh } from 'three';
 import { BufferAttribute, BufferGeometry, Line, LineBasicMaterial, Timer, Vector3 } from 'three';
 import { advance, useDrilling } from '@/features/drilling';
 import { detectCrossings, useEventsStore } from '@/features/events';
@@ -12,13 +13,17 @@ const TIP_SAMPLES = 6;
 const tmp = new Vector3();
 
 /**
- * Owns the drilling clock. Runs inside the R3F render loop:
- *  1. advances bit MD with the pure `advance` function,
- *  2. writes it to the store (no React re-render: panels read it throttled),
- *  3. moves the bit mesh and the short segment from the last station to the bit in place.
+ * Owns the drilling clock and renders the active drilling bit marker in 3D:
+ * 1. Prominent pulsing drill bit sphere at the exact tip MD.
+ * 2. Luminous outer halo highlighting the active endpoint.
+ * 3. Clearly visible lateral identification badge (e.g. "L1 · 5,600 ft") right above the bit.
+ * 4. Advances bit MD and synchronizes well progress dynamically.
  */
 export function BitLayer({ color, visible = true }: { color: string; visible?: boolean }) {
+  const bitGroup = useRef<Group>(null);
   const bit = useRef<Mesh>(null);
+  const labelRef = useRef<HTMLSpanElement>(null);
+
   const timer = useMemo(() => {
     const t = new Timer();
     if (typeof document !== 'undefined') {
@@ -47,8 +52,8 @@ export function BitLayer({ color, visible = true }: { color: string; visible?: b
     const drill = useDrilling.getState();
     const well = drill.activeWell ? useSurveyStore.getState().wells[drill.activeWell] : undefined;
     const points = drill.mode === 'plan' ? well?.plan : well?.actual;
-    if (!well || !points || points.length < 2 || !bit.current) {
-      if (bit.current) bit.current.visible = false;
+    if (!well || !points || points.length < 2 || !bitGroup.current) {
+      if (bitGroup.current) bitGroup.current.visible = false;
       return;
     }
 
@@ -69,18 +74,23 @@ export function BitLayer({ color, visible = true }: { color: string; visible?: b
     }
 
     if (!visible) {
-      if (bit.current) bit.current.visible = false;
+      if (bitGroup.current) bitGroup.current.visible = false;
       return;
     }
 
     const md = useDrilling.getState().md;
     const tip = atMd(points, md)!;
-    bit.current.visible = true;
-    bit.current.position.copy(toScene(tip, tmp));
+    bitGroup.current.visible = true;
+    bitGroup.current.position.copy(toScene(tip, tmp));
 
     timer.update();
     const elapsed = timer.getElapsed();
-    bit.current.scale.setScalar(next.playing ? 1 + 0.18 * Math.sin(elapsed * 6) : 1);
+    const pulse = next.playing ? 1 + 0.18 * Math.sin(elapsed * 6) : 1;
+    if (bit.current) bit.current.scale.setScalar(pulse);
+
+    if (labelRef.current) {
+      labelRef.current.textContent = `${well.name} · ${Math.round(tip.md).toLocaleString('en-US')} ft`;
+    }
 
     // Segment from the last passed station to the bit, along the true arc.
     const i = stationsReached(points, md);
@@ -99,10 +109,18 @@ export function BitLayer({ color, visible = true }: { color: string; visible?: b
     <group name="bit">
       {visible && (
         <>
-          <mesh ref={bit}>
-            <sphereGeometry args={[1.3, 18, 12]} />
-            <meshBasicMaterial color={color} />
-          </mesh>
+          <group ref={bitGroup}>
+            {/* 1. Core pulsing drill bit sphere (radius 1.3 matching reference HTML) */}
+            <mesh ref={bit}>
+              <sphereGeometry args={[1.3, 18, 12]} />
+              <meshBasicMaterial color={color} />
+            </mesh>
+
+            {/* 2. Clearly visible active lateral identification label near drill bit */}
+            <Html position={[0, 2.8, 0]} center className="bit-active-badge">
+              <span ref={labelRef} className="bit-active-pill" />
+            </Html>
+          </group>
           <primitive object={tipObject} />
         </>
       )}

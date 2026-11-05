@@ -114,8 +114,9 @@ export function ConstructionEditor() {
     const fromFt = units.parseDepth(fromNum);
     const toFt = units.parseDepth(toNum);
 
+    const id = editingId ?? ('c-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7));
     const candidate = {
-      id: editingId ?? 'temp-id',
+      id,
       kind,
       well: well.trim() || 'All',
       from: fromFt,

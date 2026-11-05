@@ -5,3 +5,4 @@ export type { Station, SurveyPoint, TieIn } from './lib/types';
 export { useSurveyStore, selectWell, type Well } from './model/surveyStore';
 export { SurveyImport } from './ui/SurveyImport';
 export { SurveyTable } from './ui/SurveyTable';
+export { McmExplanation } from './ui/McmExplanation';

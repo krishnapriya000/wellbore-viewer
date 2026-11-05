@@ -22,8 +22,7 @@ describe('<FormationEditor>', () => {
     it('shows view-only access notice to viewers and hides edit controls', () => {
       renderWithRole('Wellbore.Viewer');
       expect(screen.getByText(/read-only mode/i)).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /add formation/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /edit overburden/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add interval/i })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /delete overburden/i })).not.toBeInTheDocument();
 
       // Formations list remains readable for viewers
@@ -31,35 +30,138 @@ describe('<FormationEditor>', () => {
       expect(screen.getByText('Target Sand')).toBeInTheDocument();
     });
 
-    it('gives full add and edit controls to engineers', () => {
+    it('gives full add and delete controls to engineers', () => {
       renderWithRole('Wellbore.Engineer');
       expect(screen.queryByText(/read-only mode/i)).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^add formation$/i })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /edit overburden/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^add interval$/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /delete overburden/i })).toBeInTheDocument();
     });
   });
 
   describe('adding a formation', () => {
+    it('has default input values matching the original HTML implementation', () => {
+      renderWithRole('Wellbore.Engineer');
+
+      expect(screen.getByLabelText(/depth reference/i)).toHaveValue('TVD');
+      expect(screen.getByLabelText(/from/i)).toHaveValue(6100);
+      expect(screen.getByLabelText(/^to/i)).toHaveValue(6140);
+      expect(screen.getByLabelText(/formation name/i)).toHaveValue('Coal stringer');
+      expect(screen.getByLabelText(/lithology symbol/i)).toHaveValue('coal');
+    });
+
     it('adds a valid formation successfully through the form', async () => {
       const user = userEvent.setup();
       renderWithRole('Wellbore.Engineer');
 
       const nameInput = screen.getByLabelText(/formation name/i);
-      const fromInput = screen.getByPlaceholderText(/top depth/i);
-      const toInput = screen.getByPlaceholderText(/base depth/i);
+      const fromInput = screen.getByLabelText(/from/i);
+      const toInput = screen.getByLabelText(/^to/i);
 
+      await user.clear(nameInput);
       await user.type(nameInput, 'Caprock Anhydrite');
+      await user.clear(fromInput);
       await user.type(fromInput, '7000');
+      await user.clear(toInput);
       await user.type(toInput, '7500');
 
-      const submitBtn = screen.getByRole('button', { name: /^add formation$/i });
+      const submitBtn = screen.getByRole('button', { name: /^add interval$/i });
       await user.click(submitBtn);
 
-      expect(screen.getByText(/added formation "caprock anhydrite"/i)).toBeInTheDocument();
+      expect(screen.getByText(/added caprock anhydrite/i)).toBeInTheDocument();
       expect(screen.getByText('Caprock Anhydrite')).toBeInTheDocument();
       expect(useGeologyStore.getState().formations.some((f) => f.name === 'Caprock Anhydrite')).toBe(
         true,
       );
+    });
+
+    it('adds multiple formations consecutively without duplicate ID errors', async () => {
+      const user = userEvent.setup();
+      renderWithRole('Wellbore.Engineer');
+
+      const nameInput = screen.getByLabelText(/formation name/i);
+      const fromInput = screen.getByLabelText(/from/i);
+      const toInput = screen.getByLabelText(/^to/i);
+      const submitBtn = screen.getByRole('button', { name: /^add interval$/i });
+
+      // Add First Interval
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Sequential Interval 1');
+      await user.clear(fromInput);
+      await user.type(fromInput, '8200');
+      await user.clear(toInput);
+      await user.type(toInput, '8400');
+      await user.click(submitBtn);
+
+      expect(screen.getByText(/added sequential interval 1/i)).toBeInTheDocument();
+      expect(screen.getByText('Sequential Interval 1')).toBeInTheDocument();
+
+      // Add Second Interval consecutively
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Sequential Interval 2');
+      await user.clear(fromInput);
+      await user.type(fromInput, '8400');
+      await user.clear(toInput);
+      await user.type(toInput, '8600');
+      await user.click(submitBtn);
+
+      expect(screen.queryByText(/already exists/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/added sequential interval 2/i)).toBeInTheDocument();
+      expect(screen.getByText('Sequential Interval 2')).toBeInTheDocument();
+
+      // Add Third Interval consecutively
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Sequential Interval 3');
+      await user.clear(fromInput);
+      await user.type(fromInput, '8600');
+      await user.clear(toInput);
+      await user.type(toInput, '8800');
+      await user.click(submitBtn);
+
+      expect(screen.queryByText(/already exists/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/added sequential interval 3/i)).toBeInTheDocument();
+      expect(screen.getByText('Sequential Interval 3')).toBeInTheDocument();
+
+      const fms = useGeologyStore.getState().formations;
+      const f1 = fms.find((f) => f.name === 'Sequential Interval 1');
+      const f2 = fms.find((f) => f.name === 'Sequential Interval 2');
+      const f3 = fms.find((f) => f.name === 'Sequential Interval 3');
+
+      expect(f1).toBeDefined();
+      expect(f2).toBeDefined();
+      expect(f3).toBeDefined();
+      expect(f1?.id).not.toBe('temp-id');
+      expect(f2?.id).not.toBe('temp-id');
+      expect(f3?.id).not.toBe('temp-id');
+      expect(f1?.id).not.toBe(f2?.id);
+      expect(f2?.id).not.toBe(f3?.id);
+    });
+
+    it('restores sample formations when "Restore sample" button is clicked', async () => {
+      const user = userEvent.setup();
+      renderWithRole('Wellbore.Engineer');
+
+      // Add a custom formation
+      const nameInput = screen.getByLabelText(/formation name/i);
+      const fromInput = screen.getByLabelText(/from/i);
+      const toInput = screen.getByLabelText(/^to/i);
+      const submitBtn = screen.getByRole('button', { name: /^add interval$/i });
+
+      await user.clear(nameInput);
+      await user.type(nameInput, 'Temporary Custom Layer');
+      await user.clear(fromInput);
+      await user.type(fromInput, '8200');
+      await user.clear(toInput);
+      await user.type(toInput, '8400');
+      await user.click(submitBtn);
+
+      expect(screen.getByText('Temporary Custom Layer')).toBeInTheDocument();
+
+      // Click restore sample
+      const restoreBtn = screen.getByRole('button', { name: /restore sample/i });
+      await user.click(restoreBtn);
+
+      expect(screen.getByText(/sample formations restored/i)).toBeInTheDocument();
+      expect(screen.queryByText('Temporary Custom Layer')).not.toBeInTheDocument();
     });
 
     it('shows validation error if To depth is shallower than From depth', async () => {
@@ -67,14 +169,17 @@ describe('<FormationEditor>', () => {
       renderWithRole('Wellbore.Engineer');
 
       const nameInput = screen.getByLabelText(/formation name/i);
-      const fromInput = screen.getByPlaceholderText(/top depth/i);
-      const toInput = screen.getByPlaceholderText(/base depth/i);
+      const fromInput = screen.getByLabelText(/from/i);
+      const toInput = screen.getByLabelText(/^to/i);
 
+      await user.clear(nameInput);
       await user.type(nameInput, 'Inverted Depths');
+      await user.clear(fromInput);
       await user.type(fromInput, '5000');
+      await user.clear(toInput);
       await user.type(toInput, '2000');
 
-      const submitBtn = screen.getByRole('button', { name: /^add formation$/i });
+      const submitBtn = screen.getByRole('button', { name: /^add interval$/i });
       await user.click(submitBtn);
 
       expect(screen.getByText(/to must be deeper than from/i)).toBeInTheDocument();
@@ -84,46 +189,8 @@ describe('<FormationEditor>', () => {
     });
   });
 
-  describe('editing and cancelling', () => {
-    it('loads existing formation into form when Edit is clicked and updates it', async () => {
-      const user = userEvent.setup();
-      renderWithRole('Wellbore.Engineer');
-
-      const editBtn = screen.getByRole('button', { name: /edit overburden/i });
-      await user.click(editBtn);
-
-      // Verify form is in edit mode
-      expect(screen.getByText(/edit formation: overburden/i)).toBeInTheDocument();
-      const nameInput = screen.getByLabelText(/formation name/i);
-      expect(nameInput).toHaveValue('Overburden');
-
-      // Edit name
-      await user.clear(nameInput);
-      await user.type(nameInput, 'Upper Overburden');
-
-      const saveBtn = screen.getByRole('button', { name: /save changes/i });
-      await user.click(saveBtn);
-
-      expect(screen.getByText(/updated formation "upper overburden"/i)).toBeInTheDocument();
-      expect(screen.getByText('Upper Overburden')).toBeInTheDocument();
-    });
-
-    it('cancels editing and clears the form when Cancel is clicked', async () => {
-      const user = userEvent.setup();
-      renderWithRole('Wellbore.Engineer');
-
-      await user.click(screen.getByRole('button', { name: /edit overburden/i }));
-      expect(screen.getByRole('button', { name: /cancel edit/i })).toBeInTheDocument();
-
-      await user.click(screen.getByRole('button', { name: /cancel edit/i }));
-      expect(screen.queryByRole('button', { name: /cancel edit/i })).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /^add formation$/i })).toBeInTheDocument();
-      expect(screen.getByLabelText(/formation name/i)).toHaveValue('');
-    });
-  });
-
   describe('deleting a formation', () => {
-    it('requires confirmation before deleting a formation', async () => {
+    it('deletes a formation when the × button is clicked', async () => {
       const user = userEvent.setup();
       renderWithRole('Wellbore.Engineer');
 
@@ -132,47 +199,23 @@ describe('<FormationEditor>', () => {
       const deleteBtn = screen.getByRole('button', { name: /delete overburden/i });
       await user.click(deleteBtn);
 
-      // Confirm button appears
-      const confirmBtn = screen.getByRole('button', { name: /confirm/i });
-      expect(confirmBtn).toBeInTheDocument();
-
-      await user.click(confirmBtn);
-
-      expect(screen.getByText(/deleted formation "overburden"/i)).toBeInTheDocument();
+      expect(screen.getByText(/removed interval/i)).toBeInTheDocument();
       expect(screen.queryByText('Overburden')).not.toBeInTheDocument();
       expect(useGeologyStore.getState().formations.some((f) => f.name === 'Overburden')).toBe(false);
     });
   });
 
-  describe('formation visibility and legend', () => {
-    it('displays DEMO / SAMPLE GEOLOGY banner to clearly identify demo stratigraphy', () => {
+  describe('lithology legend and table format', () => {
+    it('does not display unnecessary badges or descriptions', () => {
       renderWithRole('Wellbore.Viewer');
-      expect(screen.getByText('DEMO / SAMPLE GEOLOGY')).toBeInTheDocument();
-      expect(screen.getByText(/sample stratigraphy loaded for visualization/i)).toBeInTheDocument();
+      expect(screen.queryByText('DEMO / SAMPLE GEOLOGY')).not.toBeInTheDocument();
+      expect(screen.queryByText(/sample stratigraphy loaded for visualization/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/lithology mix/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /\+ add lithology/i })).not.toBeInTheDocument();
     });
 
-    it('toggles formation visibility when the visibility button is clicked', async () => {
-      const user = userEvent.setup();
-      renderWithRole('Wellbore.Engineer');
-
-      const toggleBtn = screen.getByRole('button', { name: /hide overburden/i });
-      expect(toggleBtn).toHaveAttribute('aria-pressed', 'true');
-
-      await user.click(toggleBtn);
-
-      // Now hidden
-      expect(useGeologyStore.getState().formations.find((f) => f.id === 'fm-1')?.visible).toBe(false);
-      expect(screen.getByRole('button', { name: /show overburden/i })).toHaveAttribute('aria-pressed', 'false');
-    });
-
-    it('expands and collapses the USGS lithology pattern legend with 12 patterns', async () => {
-      const user = userEvent.setup();
+    it('displays the 12 USGS lithology pattern legend always visible below table', () => {
       renderWithRole('Wellbore.Viewer');
-
-      const legendToggle = screen.getByRole('button', { name: /show usgs lithology legend/i });
-      expect(screen.queryByRole('region', { name: /usgs lithology patterns legend/i })).not.toBeInTheDocument();
-
-      await user.click(legendToggle);
 
       const legendRegion = screen.getByRole('region', { name: /usgs lithology patterns legend/i });
       expect(legendRegion).toBeInTheDocument();
@@ -189,33 +232,14 @@ describe('<FormationEditor>', () => {
       expect(within(legendRegion).getByText('Conglomerate')).toBeInTheDocument();
       expect(within(legendRegion).getByText('Marl')).toBeInTheDocument();
       expect(within(legendRegion).getByText('Chert')).toBeInTheDocument();
-      expect(within(legendRegion).getByText('Basement')).toBeInTheDocument();
-
-      // Collapse legend
-      await user.click(screen.getByRole('button', { name: /hide lithology legend/i }));
-      expect(screen.queryByRole('region', { name: /usgs lithology patterns legend/i })).not.toBeInTheDocument();
+      expect(within(legendRegion).getByText(/granite \/ basement/i)).toBeInTheDocument();
     });
 
-    it('validates that lithology composition percentages must total 100%', async () => {
-      const user = userEvent.setup();
-      renderWithRole('Wellbore.Engineer');
-
-      const nameInput = screen.getByLabelText(/formation name/i);
-      const fromInput = screen.getByPlaceholderText(/top depth/i);
-      const toInput = screen.getByPlaceholderText(/base depth/i);
-      const pctInput = screen.getByLabelText(/percentage 1/i);
-
-      await user.type(nameInput, 'Partial Mix');
-      await user.type(fromInput, '3000');
-      await user.type(toInput, '3500');
-      await user.clear(pctInput);
-      await user.type(pctInput, '75'); // 75% != 100%
-
-      const submitBtn = screen.getByRole('button', { name: /^add formation$/i });
-      await user.click(submitBtn);
-
-      expect(screen.getByText(/must total 100%/i)).toBeInTheDocument();
-      expect(useGeologyStore.getState().formations.some((f) => f.name === 'Partial Mix')).toBe(false);
+    it('displays the hint text explaining TVD and MD intervals', () => {
+      renderWithRole('Wellbore.Viewer');
+      expect(
+        screen.getByText(/tvd intervals are layers across the whole field/i),
+      ).toBeInTheDocument();
     });
   });
 });

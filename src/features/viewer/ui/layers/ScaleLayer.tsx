@@ -5,7 +5,6 @@ import type { Box3, Group } from 'three';
 import {
   BufferAttribute,
   BufferGeometry,
-  DoubleSide,
   EdgesGeometry,
   Line,
   LineBasicMaterial,
@@ -17,13 +16,11 @@ import { atMd, useSurveyStore, type Well } from '@/features/survey';
 import { useSettings } from '@/shared/settings/settingsStore';
 import { formatNumber, toDisplay, type DepthUnit } from '@/shared/units/units';
 import {
-  computeDepthGuideLines,
   computeLandingPlanes,
   computeMdMarkers,
   computeStaffPosition,
   computeTvdTicks,
   getMaxTvd,
-  type DepthGuideLine,
   type LandingPlaneDescriptor,
   SCALE,
   tvdToSceneY,
@@ -60,16 +57,6 @@ function LandingTargetMesh({
       name={`landing-plane-${plane.wellName}`}
       position={[plane.position.x, plane.position.y, plane.position.z]}
     >
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[plane.width, plane.length]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={0.09}
-          side={DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
       <lineSegments rotation={[-Math.PI / 2, 0, 0]} geometry={edges}>
         <lineBasicMaterial color={color} transparent opacity={0.35} depthWrite={false} />
       </lineSegments>
@@ -83,49 +70,6 @@ function LandingTargetMesh({
   );
 }
 
-function DepthGuidesMesh({
-  guides,
-  color,
-}: {
-  guides: DepthGuideLine[];
-  color: string;
-}) {
-  const geometry = useMemo(() => {
-    const pts: number[] = [];
-    for (const g of guides) {
-      // Line extending in X
-      pts.push(g.xStart, g.y, g.zStart, g.xEnd, g.y, g.zStart);
-      // Line extending in Z
-      pts.push(g.xStart, g.y, g.zStart, g.xStart, g.y, g.zEnd);
-    }
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new BufferAttribute(new Float32Array(pts), 3));
-    return geo;
-  }, [guides]);
-
-  useEffect(
-    () => () => {
-      geometry.dispose();
-    },
-    [geometry],
-  );
-
-  return (
-    <lineSegments geometry={geometry}>
-      <lineBasicMaterial color={color} transparent opacity={0.3} depthWrite={false} />
-    </lineSegments>
-  );
-}
-
-/**
- * ScaleLayer displays:
- * 1. Vertical TVD scale staff with tick lines, depth labels, and top TVD axis header.
- * 2. Horizontal depth guide lines extending from the staff at depth intervals.
- * 3. Moving drill-bit HUD label showing current MD & TVD in both PLAN and ACTUAL modes.
- * 4. Dynamic horizontal TVD reference line tracking the bit's vertical depth against the TVD staff.
- * 5. Measured Depth (MD) markers along the wellbore trajectory.
- * 6. Target landing-zone reference planes beneath horizontal sections.
- */
 export function ScaleLayer({
   bounds,
   well,
@@ -162,12 +106,6 @@ export function ScaleLayer({
   // Staff pole reaches at least to the deepest depth tick
   const lastTickY = Math.abs(ticks.at(-1)?.y ?? 0);
   const staffLength = Math.max(10, maxTvdFt * SCALE, lastTickY);
-
-  // Depth guide lines extending along envelope boundaries at major TVD levels
-  const depthGuides = useMemo(
-    () => computeDepthGuideLines(staffPos, bounds, ticks),
-    [staffPos, bounds, ticks],
-  );
 
   // Landing-zone target reference planes beneath horizontal sections (inc >= 85°)
   const landingPlanes = useMemo(() => {
@@ -250,15 +188,8 @@ export function ScaleLayer({
     const bitPos = toScene(tip, tmpBit);
     const bitY = tvdToSceneY(tip.tvd);
 
-    // 1. Position moving bit HUD label
-    bitLabelGroup.current.visible = true;
-    bitLabelGroup.current.position.copy(bitPos);
-    if (bitLabelTextRef.current) {
-      const mdStr = formatNumber(toDisplay(tip.md, currentUnit), 1);
-      const tvdStr = formatNumber(toDisplay(tip.tvd, currentUnit), 1);
-      const modeBadge = drill.mode === 'plan' ? 'PLAN' : 'ACTUAL';
-      bitLabelTextRef.current.textContent = `${activeWell.name} · ${mdStr} MD · ${tvdStr} TVD ${currentUnit} [${modeBadge}]`;
-    }
+    // 1. Bit label is cleanly owned and rendered by BitLayer to avoid visual duplication
+    bitLabelGroup.current.visible = false;
 
     // 2. Position moving TVD staff badge
     if (staffBadgeGroup.current) {
@@ -305,23 +236,25 @@ export function ScaleLayer({
         </Html>
       </group>
 
-      {/* 3. TVD Staff Depth Ticks */}
-      {ticks.map((t) => (
-        <group key={t.tvdFt} position={[staffPos.x, t.y, staffPos.z]}>
-          <mesh position={[0.7, 0, 0]}>
-            <boxGeometry args={[1.4, 0.12, 0.12]} />
-            <meshBasicMaterial color={labelColor} />
-          </mesh>
-          <Html position={[-0.8, 0, 0]} center={false} className="tvd-tick-label">
-            {t.label}
-          </Html>
-        </group>
-      ))}
+      {/* 3. TVD Staff Depth Ticks: Major ticks every 1,000 ft show labels matching reference HTML line 519 */}
+      {ticks.map((t) => {
+        const isMajor = Math.round(t.tvdFt / 100) % 10 === 0;
+        return (
+          <group key={t.tvdFt} position={[staffPos.x, t.y, staffPos.z]}>
+            <mesh position={[isMajor ? 1.6 : 0.75, 0, 0]}>
+              <boxGeometry args={[isMajor ? 3.2 : 1.5, 0.12, 0.12]} />
+              <meshBasicMaterial color={labelColor} />
+            </mesh>
+            {isMajor && (
+              <Html position={[-1.2, 0, 0]} center={false} className="tvd-tick-label">
+                {t.label}
+              </Html>
+            )}
+          </group>
+        );
+      })}
 
-      {/* 4. Horizontal Depth Guide Lines */}
-      <DepthGuidesMesh guides={depthGuides} color={gridColor} />
-
-      {/* 5. Dynamic TVD Staff depth indicator */}
+      {/* 4. Dynamic TVD Staff depth indicator */}
       <group ref={staffBadgeGroup} visible={false}>
         <mesh position={[0.5, 0, 0]}>
           <boxGeometry args={[1.0, 0.22, 0.22]} />

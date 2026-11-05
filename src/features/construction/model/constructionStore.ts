@@ -119,9 +119,13 @@ export const useConstructionStore = create<ConstructionState>()(
     addItem(input) {
       const raw = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {};
       const kindStr = typeof raw['kind'] === 'string' ? raw['kind'] : 'item';
+      const rawId =
+        typeof raw['id'] === 'string' && raw['id'].trim() && raw['id'] !== 'temp-id'
+          ? raw['id'].trim()
+          : generateId(kindStr);
       const candidate = {
         ...raw,
-        id: typeof raw['id'] === 'string' && raw['id'].trim() ? raw['id'].trim() : generateId(kindStr),
+        id: rawId,
       };
 
       const parsed = ConstructionItemSchema.safeParse(candidate);

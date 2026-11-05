@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { formationAt } from '../lib/formationAt';
-import { GEOLOGY_STORAGE_KEY } from '../lib/persistence';
+import { GEOLOGY_STORAGE_KEY, loadPersistedFormations } from '../lib/persistence';
 import { INITIAL_FORMATIONS, useGeologyStore } from './geologyStore';
 
 describe('geologyStore', () => {
@@ -36,6 +36,33 @@ describe('geologyStore', () => {
     expect(state.formations).toHaveLength(INITIAL_FORMATIONS.length + 1);
     expect(state.version).toBe(1);
     expect(state.formations.at(-1)?.name).toBe('Basement Granitoid');
+  });
+
+  it('adds multiple formations consecutively without duplicate ID errors and ignores "temp-id"', () => {
+    // Add 5 formations consecutively without explicit ID or with "temp-id"
+    for (let i = 1; i <= 5; i++) {
+      const res = useGeologyStore.getState().addFormation({
+        id: i % 2 === 0 ? 'temp-id' : undefined,
+        name: `Interval Layer ${i}`,
+        ref: 'TVD',
+        well: 'All',
+        from: 8000 + i * 200,
+        to: 8000 + (i + 1) * 200,
+        comp: [{ lith: 'sandstone', pct: 100 }],
+      });
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.formation.id).not.toBe('temp-id');
+        expect(res.formation.id).toBeTruthy();
+      }
+    }
+
+    const state = useGeologyStore.getState();
+    expect(state.formations).toHaveLength(INITIAL_FORMATIONS.length + 5);
+    const addedIds = state.formations.slice(-5).map((f) => f.id);
+    const uniqueIds = new Set(addedIds);
+    expect(uniqueIds.size).toBe(5);
+    expect(uniqueIds.has('temp-id')).toBe(false);
   });
 
   it('rejects adding a formation with duplicate ID', () => {
@@ -221,6 +248,36 @@ describe('geologyStore', () => {
       const raw = localStorage.getItem(GEOLOGY_STORAGE_KEY);
       expect(raw).toBeTruthy();
       expect(raw).toContain('Persistent Caprock');
+    });
+
+    it('sanitizes legacy "temp-id" and duplicate IDs from localStorage', () => {
+      const legacyPayload = [
+        {
+          id: 'temp-id',
+          name: 'Legacy 1',
+          ref: 'TVD',
+          well: 'All',
+          from: 1000,
+          to: 2000,
+          comp: [{ lith: 'sandstone', pct: 100 }],
+        },
+        {
+          id: 'temp-id',
+          name: 'Legacy 2',
+          ref: 'TVD',
+          well: 'All',
+          from: 2000,
+          to: 3000,
+          comp: [{ lith: 'shale', pct: 100 }],
+        },
+      ];
+      localStorage.setItem(GEOLOGY_STORAGE_KEY, JSON.stringify(legacyPayload));
+
+      const loaded = loadPersistedFormations(INITIAL_FORMATIONS);
+      expect(loaded).toHaveLength(2);
+      expect(loaded[0]!.id).not.toBe('temp-id');
+      expect(loaded[1]!.id).not.toBe('temp-id');
+      expect(loaded[0]!.id).not.toBe(loaded[1]!.id);
     });
 
     it('gracefully recovers from corrupt localStorage payload and falls back to sample data', () => {
