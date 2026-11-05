@@ -1,8 +1,6 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
-import { EventEditor } from '@/features/events';
-import { FormationEditor, StripLog, WellboreLithology } from '@/features/geology';
+import { FormationEditor, WellboreLithology } from '@/features/geology';
 import { McmExplanation, SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
@@ -48,15 +46,7 @@ export function ViewerPage() {
         </ErrorBoundary>
         <ErrorBoundary name="Geology">
           <WellboreLithology activeWell={activeWell} />
-          <StripLog activeWell={activeWell} />
           <FormationEditor />
-        </ErrorBoundary>
-        <ErrorBoundary name="Well construction">
-          <Schematic activeWell={activeWell} />
-          <ConstructionEditor />
-        </ErrorBoundary>
-        <ErrorBoundary name="Events">
-          <EventEditor />
         </ErrorBoundary>
         <ErrorBoundary name="Survey data">
           <SurveyImport
@@ -80,6 +70,13 @@ export function ViewerPage() {
             onLoadSample={async () => {
               await loadSample();
               setActiveWell('L1', 0);
+              setPlaying(true);
+            }}
+            onLiveStationAdded={(well) => {
+              if (well !== activeWell) {
+                setActiveWell(well);
+              }
+              setMode('actual');
               setPlaying(true);
             }}
           />

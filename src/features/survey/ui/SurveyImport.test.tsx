@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AuthContextProvider, createMockAuthService, type Role } from '@/shared/auth';
 import type { Station } from '../lib/types';
@@ -12,6 +12,7 @@ const renderAs = (
   props?: {
     onLoaded?: (kind: 'plan' | 'actual', wells: Map<string, Station[]>) => void;
     onLoadSample?: () => void;
+    onLiveStationAdded?: (well: string) => void;
   },
 ) =>
   render(
@@ -173,6 +174,114 @@ describe('<SurveyImport> file uploads', () => {
     await waitFor(() => {
       expect(screen.getByText(/row\(s\) skipped — first: row 3/)).toBeInTheDocument();
     });
+  });
+});
+
+describe('<SurveyImport> live survey addition with well selection', () => {
+  beforeEach(() => {
+    useSurveyStore.setState({ wells: {}, order: [], status: 'empty', error: null });
+    useSurveyStore.getState().setActual(
+      new Map([
+        [
+          'L1',
+          [
+            { md: 0, inc: 0, azi: 45 },
+            { md: 100, inc: 1, azi: 45 },
+          ],
+        ],
+        [
+          'L2',
+          [
+            { md: 0, inc: 0, azi: 160 },
+            { md: 100, inc: 2, azi: 160 },
+          ],
+        ],
+        [
+          'L3',
+          [
+            { md: 0, inc: 0, azi: 290 },
+            { md: 100, inc: 3, azi: 290 },
+          ],
+        ],
+      ]),
+    );
+  });
+
+  it('renders Well selection dropdown containing L1, L2, L3 and survey inputs', () => {
+    renderAs('Wellbore.Engineer', 'L1');
+    const wellSelect = screen.getByRole('combobox', { name: 'Well' });
+    expect(wellSelect).toBeInTheDocument();
+    const options = within(wellSelect)
+      .getAllByRole('option')
+      .map((o) => o.textContent);
+    expect(options).toEqual(expect.arrayContaining(['L1', 'L2', 'L3']));
+
+    expect(screen.getByLabelText(/md ft/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/inc °/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/azi °/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add live survey/i })).toBeInTheDocument();
+  });
+
+  it('adds live survey station to L2 when L2 is selected without updating L1 or L3', async () => {
+    let notifiedWell = '';
+    renderAs('Wellbore.Engineer', 'L1', {
+      onLiveStationAdded: (w) => {
+        notifiedWell = w;
+      },
+    });
+
+    const wellSelect = screen.getByRole('combobox', { name: 'Well' });
+    fireEvent.change(wellSelect, { target: { value: 'L2' } });
+
+    const mdInput = screen.getByLabelText(/md ft/i);
+    const incInput = screen.getByLabelText(/inc °/i);
+    const aziInput = screen.getByLabelText(/azi °/i);
+
+    fireEvent.change(mdInput, { target: { value: '250' } });
+    fireEvent.change(incInput, { target: { value: '5.5' } });
+    fireEvent.change(aziInput, { target: { value: '162' } });
+
+    const submitBtn = screen.getByRole('button', { name: /add live survey/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Queued L2 @ 250/)).toBeInTheDocument();
+    });
+
+    const store = useSurveyStore.getState();
+    expect(store.wells['L2']!.actual).toHaveLength(3);
+    expect(store.wells['L2']!.actual[2]!.md).toBe(250);
+    expect(store.wells['L1']!.actual).toHaveLength(2); // L1 unchanged
+    expect(store.wells['L3']!.actual).toHaveLength(2); // L3 unchanged
+    expect(notifiedWell).toBe('L2');
+  });
+
+  it('adds live survey station to L3 when L3 is selected', async () => {
+    renderAs('Wellbore.Engineer', 'L1');
+
+    const wellSelect = screen.getByRole('combobox', { name: 'Well' });
+    fireEvent.change(wellSelect, { target: { value: 'L3' } });
+
+    const mdInput = screen.getByLabelText(/md ft/i);
+    const incInput = screen.getByLabelText(/inc °/i);
+    const aziInput = screen.getByLabelText(/azi °/i);
+
+    fireEvent.change(mdInput, { target: { value: '300' } });
+    fireEvent.change(incInput, { target: { value: '8.0' } });
+    fireEvent.change(aziInput, { target: { value: '295' } });
+
+    const submitBtn = screen.getByRole('button', { name: /add live survey/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Queued L3 @ 300/)).toBeInTheDocument();
+    });
+
+    const store = useSurveyStore.getState();
+    expect(store.wells['L3']!.actual).toHaveLength(3);
+    expect(store.wells['L3']!.actual[2]!.md).toBe(300);
+    expect(store.wells['L1']!.actual).toHaveLength(2);
+    expect(store.wells['L2']!.actual).toHaveLength(2);
   });
 });
 
