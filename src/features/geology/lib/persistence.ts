@@ -1,6 +1,6 @@
 import { FormationSchema, type Formation } from '../model/types';
 
-export const GEOLOGY_STORAGE_KEY = 'wellbore_geology_v2';
+export const GEOLOGY_STORAGE_KEY = 'wellbore_geology_v3';
 
 /**
  * Loads persisted geological formations from localStorage.
@@ -13,11 +13,27 @@ export function loadPersistedFormations(fallback: readonly Formation[]): Formati
   }
 
   try {
+    // Purge older legacy keys
+    window.localStorage.removeItem('wellbore_geology_v1');
+    window.localStorage.removeItem('wellbore_geology_v2');
+
     const raw = window.localStorage.getItem(GEOLOGY_STORAGE_KEY);
     if (!raw) return [...fallback];
 
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed) || parsed.length === 0) {
+      return [...fallback];
+    }
+
+    // Check if the persisted data contains obsolete names like 'Overburden'
+    if (parsed.some((p: unknown) => {
+      if (typeof p === 'object' && p !== null) {
+        const item = p as Record<string, unknown>;
+        return item['name'] === 'Overburden' || item['name'] === 'Target Sand';
+      }
+      return false;
+    })) {
+      window.localStorage.removeItem(GEOLOGY_STORAGE_KEY);
       return [...fallback];
     }
 

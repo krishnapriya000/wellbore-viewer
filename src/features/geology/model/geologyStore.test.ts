@@ -13,7 +13,7 @@ describe('geologyStore', () => {
     const state = useGeologyStore.getState();
     expect(state.formations).toHaveLength(INITIAL_FORMATIONS.length);
     expect(state.version).toBe(0);
-    expect(state.formations[0]!.name).toBe('Overburden');
+    expect(state.formations[0]!.name).toBe('Quaternary fill');
   });
 
   it('adds a valid formation and increments version', () => {
@@ -201,31 +201,31 @@ describe('geologyStore', () => {
 
   it('integrates seamlessly with formationAt query', () => {
     const state = useGeologyStore.getState();
-    // At L1 depth 4200 MD, the MD override 'Sand Stringer' applies
-    const fmL1 = formationAt(state.formations, 'L1', 4200, 4200);
-    expect(fmL1?.name).toBe('Sand Stringer');
+    // At L1 depth 10450 MD, the MD override 'Calcite-cemented streak' applies
+    const fmL1 = formationAt(state.formations, 'L1', 10450, 6000);
+    expect(fmL1?.name).toBe('Calcite-cemented streak');
 
-    // At L2 depth 4200 MD, no MD override exists; TVD layer 'Target Sand' applies
-    const fmL2 = formationAt(state.formations, 'L2', 4200, 4200);
-    expect(fmL2?.name).toBe('Target Sand');
+    // At L2 depth 3500 MD/TVD, no MD override exists; TVD layer 'Grey Limestone' applies
+    const fmL2 = formationAt(state.formations, 'L2', 3500, 3500);
+    expect(fmL2?.name).toBe('Grey Limestone');
   });
 
   it('toggles formation visibility and updates formationAt behavior', () => {
-    const res = useGeologyStore.getState().toggleVisibility('fm-1');
+    const res = useGeologyStore.getState().toggleVisibility('fm-0');
     expect(res.ok).toBe(true);
 
-    const f1 = useGeologyStore.getState().formations.find((f) => f.id === 'fm-1');
-    expect(f1?.visible).toBe(false);
+    const f0 = useGeologyStore.getState().formations.find((f) => f.id === 'fm-0');
+    expect(f0?.visible).toBe(false);
 
-    // When hidden, formationAt skips fm-1 (Overburden: 0-1500) and returns null
+    // When hidden, formationAt skips fm-0 (Quaternary fill: 0-1200) and returns null
     const hiddenQuery = formationAt(useGeologyStore.getState().formations, 'L1', 500, 500);
     expect(hiddenQuery).toBeNull();
 
     // Toggle back on
-    const res2 = useGeologyStore.getState().toggleVisibility('fm-1');
+    const res2 = useGeologyStore.getState().toggleVisibility('fm-0');
     expect(res2.ok).toBe(true);
     const visibleQuery = formationAt(useGeologyStore.getState().formations, 'L1', 500, 500);
-    expect(visibleQuery?.name).toBe('Overburden');
+    expect(visibleQuery?.name).toBe('Quaternary fill');
   });
 
   it('returns error when toggling visibility for non-existent formation', () => {

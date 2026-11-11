@@ -3,6 +3,7 @@ import type { SurveyPoint } from '@/features/survey';
 import type { Formation } from '../model/types';
 import {
   computeMdIntervals,
+  computeStripLogHeight,
   computeStripLogTicks,
   computeTvdIntervals,
   getIntervalsDepthRange,
@@ -140,6 +141,20 @@ describe('stripLogLayout', () => {
       const range = getIntervalsDepthRange([]);
       expect(range.minDepthFt).toBe(0);
       expect(range.maxDepthFt).toBe(5000);
+    });
+  });
+
+  describe('computeStripLogHeight', () => {
+    it('returns default minimum height when intervals are empty', () => {
+      expect(computeStripLogHeight([])).toBe(360);
+    });
+
+    it('allocates sufficient height for all formation intervals with proportional scaling', () => {
+      const intervals = computeTvdIntervals(TEST_FORMATIONS);
+      const height = computeStripLogHeight(intervals);
+      // 3 formations, minimum 64px each + header (34px) + footer (16px) + extra for thick layers
+      expect(height).toBeGreaterThanOrEqual(380);
+      expect(height).toBeGreaterThan(intervals.length * 64);
     });
   });
 });

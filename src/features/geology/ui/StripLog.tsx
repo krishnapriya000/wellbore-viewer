@@ -5,6 +5,7 @@ import { Segmented } from '@/shared/ui/Segmented';
 import { drawStripLog } from '../lib/stripLogDraw';
 import {
   computeMdIntervals,
+  computeStripLogHeight,
   computeStripLogTicks,
   computeTvdIntervals,
   getIntervalsDepthRange,
@@ -85,7 +86,7 @@ export function StripLog({ activeWell }: { activeWell?: string | null }) {
     const render = () => {
       const rect = container.getBoundingClientRect();
       const cssW = Math.max(260, Math.floor(rect.width));
-      const cssH = 360; // Standard comfortable vertical log height
+      const cssH = computeStripLogHeight(intervals);
       const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
 
       // Adjust buffer size only when dimensions change
@@ -175,8 +176,9 @@ export function StripLog({ activeWell }: { activeWell?: string | null }) {
         className="strip-log-container"
         style={{
           width: '100%',
-          minHeight: '360px',
-          overflow: 'hidden',
+          maxHeight: '520px',
+          overflowY: 'auto',
+          overflowX: 'hidden',
           borderRadius: '8px',
           border: '1px solid var(--line)',
         }}

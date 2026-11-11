@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
+import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
-import { FormationEditor, WellboreLithology } from '@/features/geology';
+import { EventEditor } from '@/features/events';
+import { FormationEditor, StripLog, WellboreLithology } from '@/features/geology';
 import { McmExplanation, SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
+import { WellManager } from '@/features/wells';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
 // three.js + R3F load in their own chunk, after the shell has painted.
@@ -46,7 +49,15 @@ export function ViewerPage() {
         </ErrorBoundary>
         <ErrorBoundary name="Geology">
           <WellboreLithology activeWell={activeWell} />
+          <StripLog activeWell={activeWell} />
           <FormationEditor />
+        </ErrorBoundary>
+        <ErrorBoundary name="Well construction">
+          <Schematic activeWell={activeWell} />
+          <ConstructionEditor />
+        </ErrorBoundary>
+        <ErrorBoundary name="Events">
+          <EventEditor />
         </ErrorBoundary>
         <ErrorBoundary name="Survey data">
           <SurveyImport
@@ -82,6 +93,9 @@ export function ViewerPage() {
           />
           <SurveyTable well={activeWell} bitStore={useDrilling} />
           <McmExplanation />
+        </ErrorBoundary>
+        <ErrorBoundary name="Well Management">
+          <WellManager />
         </ErrorBoundary>
       </aside>
     </main>

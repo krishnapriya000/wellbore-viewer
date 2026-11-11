@@ -1214,12 +1214,9 @@ canvas.sw {
 /* 5. Minimal, crisp TVD axis header */
 .tvd-header-badge {
   font-family: var(--f-display, 'Barlow Condensed', sans-serif);
-  font-size: 0.72rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--scene-label);
-  background: color-mix(in srgb, var(--surface) 80%, transparent);
-  padding: 1px 5px;
-  border-radius: 3px;
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
@@ -1228,13 +1225,14 @@ canvas.sw {
 /* 6. TVD tick labels: unobtrusive, crisp typography */
 .tvd-tick-label {
   font-family: var(--f-display, 'Barlow Condensed', sans-serif);
-  font-size: 0.65rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: var(--scene-label);
   pointer-events: none;
   user-select: none;
   white-space: nowrap;
-  transform: translateX(-4px);
+  transform: translateX(-100%);
+  padding-right: 6px;
 }
 
 /* 7. Dynamic TVD staff depth badge */

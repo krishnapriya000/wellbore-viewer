@@ -1,4 +1,6 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
+import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { backendClient } from '@/shared/api/backendClient';
 import { Authorized } from '@/shared/auth';
 import { useUnits } from '@/shared/units/useUnits';
 import { parseSurveyFile } from '../lib/parseFile';
@@ -29,6 +31,61 @@ export function SurveyImport({
   const units = useUnits();
   const formId = useId();
 
+  const currentWellId = useWellStore((s) => s.currentWellId);
+  const wellId = currentWellId || getActiveWellId();
+
+  // Load existing surveys from PostgreSQL on mount / well change
+  useEffect(() => {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') return;
+    let active = true;
+    async function fetchSavedSurveys() {
+      try {
+        const laterals = await backendClient.getSurveys(wellId);
+        if (!active || !laterals || laterals.length === 0) return;
+        const planMap = new Map<string, Station[]>();
+        const actualMap = new Map<string, Station[]>();
+
+        const currentWells = useSurveyStore.getState().wells;
+
+        for (const lat of laterals) {
+          for (const surv of lat.surveys) {
+            if (!surv.stations || surv.stations.length < 2) continue;
+
+            const existingStations =
+              surv.type === 'PLAN'
+                ? currentWells[lat.code]?.plan?.length ?? 0
+                : currentWells[lat.code]?.actual?.length ?? 0;
+
+            // Never downgrade an existing complete survey with a tiny stub
+            if (existingStations > 10 && surv.stations.length < 10) {
+              continue;
+            }
+
+            const cleanStations = surv.stations.map((s) => ({
+              md: s.measuredDepth,
+              inc: s.inclination,
+              azi: s.azimuth,
+            }));
+
+            if (surv.type === 'PLAN') {
+              planMap.set(lat.code, cleanStations);
+            } else if (surv.type === 'ACTUAL') {
+              actualMap.set(lat.code, cleanStations);
+            }
+          }
+        }
+        if (planMap.size > 0) setPlan(planMap);
+        if (actualMap.size > 0) setActual(actualMap);
+      } catch (err) {
+        console.warn('Could not load surveys from PostgreSQL:', err);
+      }
+    }
+    void fetchSavedSurveys();
+    return () => {
+      active = false;
+    };
+  }, [wellId, setPlan, setActual]);
+
   // Ensure default well choices include L1, L2, L3 matching original HTML
   const defaultWells = ['L1', 'L2', 'L3'];
   const wellOptions = Array.from(new Set([...order, ...defaultWells]));
@@ -54,6 +111,24 @@ export function SurveyImport({
       const { wells: parsedWells, issues } = await parseSurveyFile(file, fallback);
       (kind === 'plan' ? setPlan : setActual)(parsedWells);
       onLoaded?.(kind, parsedWells);
+
+      // Save uploaded survey runs and stations to PostgreSQL
+      const surveysPayload: Record<string, { md: number; inc: number; azi: number }[]> = {};
+      for (const [wName, stations] of parsedWells.entries()) {
+        surveysPayload[wName] = stations.map((s) => ({
+          md: s.md,
+          inc: s.inc,
+          azi: s.azi,
+        }));
+      }
+      void backendClient
+        .uploadSurveys(wellId, {
+          type: kind.toUpperCase() as 'PLAN' | 'ACTUAL',
+          sourceFile: file.name,
+          surveys: surveysPayload,
+        })
+        .catch((err) => console.warn('Could not save surveys to PostgreSQL:', err));
+
       const skipped = issues.length
         ? ` (${issues.length} row(s) skipped — first: row ${issues[0]!.row}, ${issues[0]!.message})`
         : '';
@@ -79,9 +154,37 @@ export function SurveyImport({
       } else {
         await loadSample();
       }
+
+      // Persist sample data to PostgreSQL if not already present
+      const currentWells = useSurveyStore.getState().wells;
+      const planPayload: Record<string, { md: number; inc: number; azi: number }[]> = {};
+      const actualPayload: Record<string, { md: number; inc: number; azi: number }[]> = {};
+      for (const [wName, wObj] of Object.entries(currentWells)) {
+        if (wObj.plan.length > 0) {
+          planPayload[wName] = wObj.plan.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi }));
+        }
+        if (wObj.actual.length > 0) {
+          actualPayload[wName] = wObj.actual.map((s) => ({ md: s.md, inc: s.inc, azi: s.azi }));
+        }
+      }
+      if (Object.keys(planPayload).length > 0) {
+        void backendClient.uploadSurveys(wellId, {
+          type: 'PLAN',
+          sourceFile: 'sample_plan.csv',
+          surveys: planPayload,
+        }).catch(() => {});
+      }
+      if (Object.keys(actualPayload).length > 0) {
+        void backendClient.uploadSurveys(wellId, {
+          type: 'ACTUAL',
+          sourceFile: 'sample_actual.csv',
+          surveys: actualPayload,
+        }).catch(() => {});
+      }
+
       setMsg({
         kind: 'ok',
-        text: 'Sample plan and actual loaded; streaming from surface.',
+        text: 'Sample plan and actual loaded; streaming from surface (Saved in PostgreSQL).',
       });
     } catch (e) {
       setMsg({ kind: 'err', text: e instanceof Error ? e.message : String(e) });
@@ -122,9 +225,23 @@ export function SurveyImport({
       return;
     }
 
+    // Save live survey station to PostgreSQL
+    void backendClient
+      .addLiveSurvey(wellId, {
+        lateralCode: targetWell,
+        measuredDepth: result.point.md,
+        inclination: result.point.inc,
+        azimuth: result.point.azi,
+        northing: result.point.n,
+        easting: result.point.e,
+        tvd: result.point.tvd,
+        doglegSeverity: result.point.dls,
+      })
+      .catch((err) => console.warn('Could not save live survey station to PostgreSQL:', err));
+
     setMsg({
       kind: result.point.dls > 3 ? 'err' : 'ok',
-      text: `Queued ${targetWell} @ ${units.depth(result.point.md)} · DLS ${units.dls(result.point.dls)}${result.point.dls > 3 ? ', above 3.0' : ''}.`,
+      text: `Queued ${targetWell} @ ${units.depth(result.point.md)} · DLS ${units.dls(result.point.dls)}${result.point.dls > 3 ? ', above 3.0' : ''} (Saved in PostgreSQL).`,
     });
     setMdStr('');
     onLiveStationAdded?.(targetWell);

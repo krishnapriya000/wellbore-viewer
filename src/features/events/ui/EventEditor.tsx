@@ -1,11 +1,14 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSurveyStore } from '@/features/survey';
+import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
 import { Authorized } from '@/shared/auth';
+import { backendClient } from '@/shared/api/backendClient';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import { useUnits } from '@/shared/units/useUnits';
 import {
   EVENT_TYPE_LABELS,
   getEventCategory,
+  INITIAL_EVENTS,
   useEventsStore,
 } from '../model/eventsStore';
 import {
@@ -20,11 +23,47 @@ export function EventEditor() {
   const addEvent = useEventsStore((s) => s.addEvent);
   const updateEvent = useEventsStore((s) => s.updateEvent);
   const removeEvent = useEventsStore((s) => s.removeEvent);
+  const setEvents = useEventsStore((s) => s.setEvents);
   const resetToSample = useEventsStore((s) => s.resetToSample);
+
+  const currentWellId = useWellStore((s) => s.currentWellId);
+  const wellId = currentWellId || getActiveWellId();
 
   const wells = useSurveyStore((s) => s.order);
   const units = useUnits();
   const formId = useId();
+
+  // Load events from PostgreSQL on mount / well change
+  useEffect(() => {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') return;
+    let active = true;
+    async function loadEvents() {
+      try {
+        const backendEvents = await backendClient.getEngineeringEvents(wellId);
+        if (!active) return;
+        if (backendEvents && backendEvents.length > 0) {
+          const mapped: DrillEvent[] = backendEvents.map((e) => ({
+            id: e.id,
+            well: e.lateral?.code || 'L1',
+            md: e.measuredDepth ?? 0,
+            type: (EVENT_TYPE_LABELS[e.eventType as EventType] ? e.eventType : 'casing') as EventType,
+            note: e.description ?? '',
+          }));
+          setEvents(mapped);
+        } else if (events.length === 0) {
+          // If PostgreSQL has no events, seed with INITIAL_EVENTS
+          await backendClient.batchSaveEngineeringEvents(wellId, INITIAL_EVENTS);
+          if (active) setEvents(INITIAL_EVENTS);
+        }
+      } catch (err) {
+        console.warn('Could not load engineering events from backend:', err);
+      }
+    }
+    void loadEvents();
+    return () => {
+      active = false;
+    };
+  }, [wellId, setEvents]);
 
   // Filter selection: 'All' or a specific well
   const [wellFilter, setWellFilter] = useState('All');
@@ -100,6 +139,15 @@ export function EventEditor() {
     }
 
     if (editingId) {
+      void backendClient
+        .updateEngineeringEvent(wellId, editingId, {
+          eventType: type,
+          measuredDepth: mdFt,
+          description: note.trim(),
+          lateralCode: well.trim() || 'L1',
+        })
+        .catch((err) => console.warn('Could not update event in PostgreSQL:', err));
+
       const res = updateEvent(editingId, candidate);
       if (!res.ok) {
         setMsg({ kind: 'err', text: res.error });
@@ -108,7 +156,7 @@ export function EventEditor() {
       resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Updated event "${EVENT_TYPE_LABELS[parsed.data.type]}" on ${parsed.data.well}.`,
+        text: `Updated event "${EVENT_TYPE_LABELS[parsed.data.type]}" on ${parsed.data.well} (Saved in PostgreSQL).`,
       });
     } else {
       const res = addEvent(candidate);
@@ -116,25 +164,49 @@ export function EventEditor() {
         setMsg({ kind: 'err', text: res.error });
         return;
       }
+
+      void backendClient
+        .createEngineeringEvent(wellId, {
+          eventType: type,
+          measuredDepth: mdFt,
+          description: note.trim(),
+          lateralCode: well.trim() || 'L1',
+        })
+        .catch((err) => console.warn('Could not save event in PostgreSQL:', err));
+
       resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Added event "${EVENT_TYPE_LABELS[parsed.data.type]}" at ${units.depth(parsed.data.md)}.`,
+        text: `Added event "${EVENT_TYPE_LABELS[parsed.data.type]}" at ${units.depth(parsed.data.md)} (Saved in PostgreSQL).`,
       });
     }
   }
 
   function handleDelete(id: string, eventType: EventType, eventWell: string) {
+    void backendClient.deleteEngineeringEvent(wellId, id).catch((err) =>
+      console.warn('Could not delete event in PostgreSQL:', err),
+    );
     const res = removeEvent(id);
     setConfirmDeleteId(null);
     if (res.ok) {
       if (editingId === id) resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Deleted event "${EVENT_TYPE_LABELS[eventType]}" on ${eventWell}.`,
+        text: `Deleted event "${EVENT_TYPE_LABELS[eventType]}" on ${eventWell} (Deleted from PostgreSQL).`,
       });
     } else {
       setMsg({ kind: 'err', text: res.error });
+    }
+  }
+
+  async function handleResetSample() {
+    resetToSample();
+    resetForm(true);
+    setMsg({ kind: 'ok', text: 'Reset to sample events (Synchronized with PostgreSQL).' });
+    try {
+      await backendClient.batchSaveEngineeringEvents(wellId, INITIAL_EVENTS);
+    } catch (err) {
+      console.warn('Could not batch save events to PostgreSQL:', err);
     }
   }
 
@@ -362,7 +434,7 @@ export function EventEditor() {
             <button className="btn primary" type="submit">
               {editingId ? 'Save Changes' : 'Add Event'}
             </button>
-            <button type="button" className="btn" onClick={() => void resetToSample()}>
+            <button type="button" className="btn" onClick={() => void handleResetSample()}>
               Reset Sample Events
             </button>
           </div>

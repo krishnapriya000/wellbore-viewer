@@ -55,7 +55,7 @@ export function Viewport() {
         {layers.showGeology && active && (
           <SleeveLayer key={`sleeve-${active.name}`} well={active} visible={layers.showGeology} />
         )}
-        <CasingLayer visible={false} />
+        <CasingLayer visible={true} />
         {wells.map((w) => (
           <PlanLayer
             key={w.name}
@@ -76,7 +76,7 @@ export function Viewport() {
           />
         )}
         <BitLayer color={colors.actual} visible={layers.showActual} />
-        <EventMarkersLayer visible={false} />
+        <EventMarkersLayer visible={true} />
         <ScaleLayer
           bounds={bounds}
           well={active}

@@ -161,3 +161,31 @@ export function getIntervalsDepthRange(intervals: readonly StripLogInterval[]): 
 
   return { minDepthFt: Math.min(0, min), maxDepthFt: Math.max(1000, max) };
 }
+
+/**
+ * Calculates the total canvas height required so that every formation entry
+ * has ample vertical space for:
+ * 1. Formation Name
+ * 2. Depth Range (From – To)
+ * 3. Lithology Name – Percentage (%)
+ * plus vertical padding and proportional scaling for thicker formations.
+ */
+export function computeStripLogHeight(intervals: readonly StripLogInterval[]): number {
+  if (!intervals.length) return 360;
+
+  const headerH = 34;
+  const footerH = 16;
+  const minIntervalH = 64;
+
+  let totalIntervalsH = 0;
+  for (const item of intervals) {
+    let h = minIntervalH;
+    // Add proportional breathing room for thicker formations
+    if (item.thicknessFt > 400) {
+      h += Math.min(60, Math.round((item.thicknessFt - 400) * 0.025));
+    }
+    totalIntervalsH += h;
+  }
+
+  return Math.max(380, headerH + totalIntervalsH + footerH);
+}

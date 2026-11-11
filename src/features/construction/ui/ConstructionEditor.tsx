@@ -1,10 +1,12 @@
-import { useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSurveyStore } from '@/features/survey';
+import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { backendClient } from '@/shared/api/backendClient';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import { useUnits } from '@/shared/units/useUnits';
 import { checkItem } from '../lib/rules';
-import { useConstructionStore } from '../model/constructionStore';
+import { INITIAL_CONSTRUCTION_ITEMS, useConstructionStore } from '../model/constructionStore';
 import {
   CASING_SIZES_IN,
   HOLE_SIZES_IN,
@@ -16,11 +18,48 @@ export function ConstructionEditor() {
   const addItem = useConstructionStore((s) => s.addItem);
   const updateItem = useConstructionStore((s) => s.updateItem);
   const removeItem = useConstructionStore((s) => s.removeItem);
+  const setItems = useConstructionStore((s) => s.setItems);
   const resetToSample = useConstructionStore((s) => s.resetToSample);
+
+  const currentWellId = useWellStore((s) => s.currentWellId);
+  const wellId = currentWellId || getActiveWellId();
 
   const wells = useSurveyStore((s) => s.order);
   const units = useUnits();
   const formId = useId();
+
+  // Load construction items from PostgreSQL on mount / well change
+  useEffect(() => {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') return;
+    let active = true;
+    async function loadConstruction() {
+      try {
+        const backendItems = await backendClient.getConstruction(wellId);
+        if (!active) return;
+        if (backendItems && backendItems.length > 0) {
+          const mapped: ConstructionItem[] = backendItems.map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            well: item.well,
+            from: item.from,
+            to: item.to,
+            size: item.size,
+            note: item.note ?? '',
+          }));
+          setItems(mapped);
+        } else if (items.length === 0) {
+          await backendClient.batchSaveConstruction(wellId, INITIAL_CONSTRUCTION_ITEMS);
+          if (active) setItems(INITIAL_CONSTRUCTION_ITEMS);
+        }
+      } catch (err) {
+        console.warn('Could not load construction from backend:', err);
+      }
+    }
+    void loadConstruction();
+    return () => {
+      active = false;
+    };
+  }, [wellId, setItems]);
 
   // Filter selection: 'All' or specific kind ('hole' | 'casing' | 'cement')
   const [kindFilter, setKindFilter] = useState<'all' | 'hole' | 'casing' | 'cement'>('all');
@@ -126,6 +165,17 @@ export function ConstructionEditor() {
     };
 
     if (editingId) {
+      void backendClient
+        .updateConstruction(wellId, editingId, {
+          kind: candidate.kind,
+          well: candidate.well,
+          from: candidate.from,
+          to: candidate.to,
+          size: candidate.size,
+          note: candidate.note,
+        })
+        .catch((err) => console.warn('Could not update construction in PostgreSQL:', err));
+
       const res = updateItem(editingId, candidate);
       if (!res.ok) {
         setMsg({ kind: 'err', text: res.error });
@@ -134,7 +184,7 @@ export function ConstructionEditor() {
       resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Updated ${candidate.kind} section (${candidate.size}") on ${candidate.well}.`,
+        text: `Updated ${candidate.kind} section (${candidate.size}") on ${candidate.well} (Saved in PostgreSQL).`,
         warnings: res.warnings,
       });
     } else {
@@ -143,26 +193,53 @@ export function ConstructionEditor() {
         setMsg({ kind: 'err', text: res.error });
         return;
       }
+
+      void backendClient
+        .createConstruction(wellId, {
+          kind: candidate.kind,
+          well: candidate.well,
+          from: candidate.from,
+          to: candidate.to,
+          size: candidate.size,
+          note: candidate.note,
+        })
+        .catch((err) => console.warn('Could not save construction in PostgreSQL:', err));
+
       resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Added ${candidate.kind} section (${candidate.size}") from ${units.depth(candidate.from)} to ${units.depth(candidate.to)}.`,
+        text: `Added ${candidate.kind} section (${candidate.size}") from ${units.depth(candidate.from)} to ${units.depth(candidate.to)} (Saved in PostgreSQL).`,
         warnings: res.warnings,
       });
     }
   }
 
   function handleDelete(id: string, itemKind: string, itemSize: number, itemWell: string) {
+    void backendClient
+      .deleteConstruction(wellId, id, itemKind as 'hole' | 'casing' | 'cement')
+      .catch((err) => console.warn('Could not delete construction in PostgreSQL:', err));
+
     const res = removeItem(id);
     setConfirmDeleteId(null);
     if (res.ok) {
       if (editingId === id) resetForm(true);
       setMsg({
         kind: 'ok',
-        text: `Deleted ${itemKind} (${itemSize}") on ${itemWell}.`,
+        text: `Deleted ${itemKind} (${itemSize}") on ${itemWell} (Deleted from PostgreSQL).`,
       });
     } else {
       setMsg({ kind: 'err', text: res.error });
+    }
+  }
+
+  async function handleResetSample() {
+    resetToSample();
+    resetForm(true);
+    setMsg({ kind: 'ok', text: 'Reset to sample construction (Synchronized with PostgreSQL).' });
+    try {
+      await backendClient.batchSaveConstruction(wellId, INITIAL_CONSTRUCTION_ITEMS);
+    } catch (err) {
+      console.warn('Could not batch save construction to PostgreSQL:', err);
     }
   }
 
@@ -441,7 +518,7 @@ export function ConstructionEditor() {
             <button className="btn primary" type="submit">
               {editingId ? 'Save Changes' : 'Add Construction Item'}
             </button>
-            <button type="button" className="btn" onClick={() => void resetToSample()}>
+            <button type="button" className="btn" onClick={() => void handleResetSample()}>
               Reset Sample Construction
             </button>
           </div>

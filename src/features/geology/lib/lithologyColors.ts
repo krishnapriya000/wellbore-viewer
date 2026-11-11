@@ -85,6 +85,19 @@ export function formatCompSummary(formation: Pick<Formation, 'comp'>): string {
   return formation.comp.map((c) => `${c.lith} ${Math.round(c.pct)}%`).join(', ');
 }
 
+/** Formats lithology and percentage values, e.g. "Shale – 70%, Sandstone – 30%" or "Sandstone – 100%". */
+export function formatLithologyPercentageText(
+  comp: readonly { lith: Lithology; pct: number }[],
+): string {
+  if (!comp.length) return 'Shale – 100%';
+  return comp
+    .map((c) => {
+      const name = LITHOLOGY_METAS[c.lith]?.name ?? c.lith.charAt(0).toUpperCase() + c.lith.slice(1);
+      return `${name} – ${Math.round(c.pct)}%`;
+    })
+    .join(', ');
+}
+
 export interface LithologyMeta {
   lith: Lithology;
   name: string;

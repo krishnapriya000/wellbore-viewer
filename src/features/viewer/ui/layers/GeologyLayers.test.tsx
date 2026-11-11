@@ -55,16 +55,16 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
 
       // Labels are THREE.Sprite objects placed on the north wall face — not DOM text.
       // Verify presence by the group name rendered by TvdWallMesh.
-      expect(wallGroup(container, 'Overburden')).not.toBeNull();
+      expect(wallGroup(container, 'Quaternary fill')).not.toBeNull();
       expect(wallGroup(container, 'Upper Shale')).not.toBeNull();
-      expect(wallGroup(container, 'Target Sand')).not.toBeNull();
-      expect(wallGroup(container, 'Lower Carbonate')).not.toBeNull();
+      expect(wallGroup(container, 'Grey Limestone')).not.toBeNull();
+      expect(wallGroup(container, 'Siltstone Member')).not.toBeNull();
     });
 
     it('renders localized MD override badge for well-specific formation', () => {
       // MD override labels still use <Html> so they appear as DOM text in tests.
       render(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
-      expect(screen.getByText(/Sand Stringer \(L1 MD Override\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Calcite-cemented streak \(L1 MD Override\)/i)).toBeInTheDocument();
     });
 
     it('refreshes rendered layers when formation data is edited in geologyStore', () => {
@@ -92,22 +92,22 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
       const { container, rerender } = render(
         <GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />,
       );
-      expect(wallGroup(container, 'Overburden')).not.toBeNull();
+      expect(wallGroup(container, 'Quaternary fill')).not.toBeNull();
 
       act(() => {
-        useGeologyStore.getState().toggleVisibility('fm-1');
+        useGeologyStore.getState().toggleVisibility('fm-0');
       });
 
       rerender(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
       // Formation removed from layout → TvdWallMesh group no longer rendered
-      expect(wallGroup(container, 'Overburden')).toBeNull();
+      expect(wallGroup(container, 'Quaternary fill')).toBeNull();
     });
 
     it('hides the entire layer when visible={false} is passed', () => {
       const { container } = render(
         <GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} visible={false} />,
       );
-      expect(wallGroup(container, 'Overburden')).toBeNull();
+      expect(wallGroup(container, 'Quaternary fill')).toBeNull();
       expect(wallGroup(container, 'Upper Shale')).toBeNull();
     });
 
@@ -115,22 +115,22 @@ describe('<GeologyWallsLayer> and <SleeveLayer>', () => {
       const { container, rerender } = render(
         <GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />,
       );
-      expect(wallGroup(container, 'Target Sand')).not.toBeNull();
+      expect(wallGroup(container, 'Grey Limestone')).not.toBeNull();
 
       act(() => {
-        useGeologyStore.getState().updateFormation('fm-3', {
+        useGeologyStore.getState().updateFormation('fm-2', {
           name: 'Target Limestone',
           ref: 'TVD',
           well: 'All',
-          from: 3500,
-          to: 4500,
+          from: 2800,
+          to: 4200,
           comp: [{ lith: 'limestone', pct: 100 }],
         });
       });
 
       rerender(<GeologyWallsLayer bounds={MOCK_BOUNDS} wells={[MOCK_WELL]} />);
       expect(wallGroup(container, 'Target Limestone')).not.toBeNull();
-      expect(wallGroup(container, 'Target Sand')).toBeNull();
+      expect(wallGroup(container, 'Grey Limestone')).toBeNull();
     });
   });
 

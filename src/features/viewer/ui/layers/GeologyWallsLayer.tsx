@@ -1,5 +1,5 @@
 import { Html } from '@react-three/drei';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   BufferGeometry,
   CanvasTexture,
@@ -21,7 +21,7 @@ import {
   type TvdWallDescriptor,
 } from '../../lib/geologyWalls';
 import { createLithologyTexture } from '../../lib/lithologyTexture';
-import { cssToken } from '../../lib/scene';
+import { useSceneColors } from '../useSceneColors';
 
 const TILE_FT = 400; // 400 ft per pattern tile repeat, matching reference viewer
 
@@ -39,47 +39,29 @@ const TILE_FT = 400; // 400 ft per pattern tile repeat, matching reference viewe
 // ---------------------------------------------------------------------------
 function makeFormationSprite(
   name: string,
-  hexColor: string,
-  height: number,
-  labelColor: string,
+  height = 2.6,
+  weight = 600,
+  color = '#42514d',
 ): Sprite | null {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   // jsdom (test env) and some headless environments return null for getContext('2d').
   if (!ctx) return null;
 
-  const fontSize = 52;
-  const font = `600 ${fontSize}px "Barlow Condensed", "Arial Narrow", sans-serif`;
+  const fs = 56;
+  const font = `${weight} ${fs}px "Barlow Condensed", "Arial Narrow", sans-serif`;
 
-  // Measure text so the canvas is exactly wide enough
+  // Measure text so canvas is exactly wide enough
   ctx.font = font;
-  const textW = Math.ceil(ctx.measureText(name).width) + 24;
+  const textW = Math.ceil(ctx.measureText(name).width) + 12;
   canvas.width = textW;
   canvas.height = 72;
 
   // Re-set font after resize (canvas resize clears state)
   ctx.font = font;
-
-  // Translucent formation-color pill background
-  ctx.globalAlpha = 0.22;
-  ctx.fillStyle = hexColor;
-  const r = 10;
-  ctx.beginPath();
-  ctx.roundRect(2, 8, canvas.width - 4, canvas.height - 16, r);
-  ctx.fill();
-
-  // Opaque left accent bar in the formation color
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = hexColor;
-  ctx.beginPath();
-  ctx.roundRect(2, 8, 6, canvas.height - 16, [r, 0, 0, r]);
-  ctx.fill();
-
-  // Formation name text
-  ctx.font = font;
-  ctx.fillStyle = labelColor;
+  ctx.fillStyle = color;
   ctx.textBaseline = 'middle';
-  ctx.fillText(name, 18, canvas.height / 2);
+  ctx.fillText(name, 6, 38);
 
   const texture = new CanvasTexture(canvas);
   texture.minFilter = LinearFilter;
@@ -88,9 +70,9 @@ function makeFormationSprite(
     new SpriteMaterial({ map: texture, transparent: true, depthTest: false }),
   );
 
-  // Scale sprite in scene units: height = `height`, preserve canvas aspect
-  const aspect = canvas.width / canvas.height;
-  sprite.scale.set(height * aspect, height, 1);
+  // Left-anchored vertically-centered text sprite matching original HTML: s.center.set(0, 0.5)
+  sprite.center.set(0, 0.5);
+  sprite.scale.set((height * textW) / 72, height, 1);
   sprite.renderOrder = 10;
   return sprite;
 }
@@ -100,21 +82,25 @@ function makeFormationSprite(
 // ---------------------------------------------------------------------------
 function FormationLabelSprite({
   name,
-  hexColor,
   position,
 }: {
   name: string;
-  hexColor: string;
   position: [number, number, number];
 }) {
-  // 3 scene units ≈ 300 ft — visible but not overwhelming
-  const SPRITE_HEIGHT = 3;
+  const colors = useSceneColors();
+  const labelColor = colors.label || '#42514d';
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined' && document.fonts) {
+      document.fonts.ready.then(() => setFontsLoaded(true));
+    }
+  }, []);
 
   const sprite = useMemo(() => {
     if (typeof document === 'undefined') return null;
-    const labelColor = cssToken('--scene-label', hexColor);
-    return makeFormationSprite(name, hexColor, SPRITE_HEIGHT, labelColor);
-  }, [name, hexColor]);
+    return makeFormationSprite(name, 2.6, 600, labelColor);
+  }, [name, labelColor, fontsLoaded]);
 
   // Clean up GPU resources when the sprite changes or the component unmounts
   useEffect(() => {
@@ -207,7 +193,6 @@ function TvdWallMesh({ wall }: { wall: TvdWallDescriptor }) {
       {/* 4. Formation name — canvas-texture THREE.Sprite placed at the label position */}
       <FormationLabelSprite
         name={wall.name}
-        hexColor={wall.color.hex}
         position={wall.labelPosition}
       />
     </group>

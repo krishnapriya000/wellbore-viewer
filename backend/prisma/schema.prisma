@@ -1,0 +1,232 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SurveyType {
+  PLAN
+  ACTUAL
+}
+
+enum LateralType {
+  MAIN
+  BRANCH
+}
+
+// Main well information
+model Well {
+  id          String   @id @default(cuid())
+  name        String
+  wellCode    String?  @unique
+  fieldName   String?
+  location    String?
+  description String?
+  datumElevation Float?
+  kbElevation    Float?
+
+  laterals             Lateral[]
+  formations           FormationInterval[]
+  engineeringEvents    EngineeringEvent[]
+  constructionSections WellConstructionSection[]
+  casingStrings        CasingString[]
+  cementIntervals      CementInterval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// L1, L2, L3 etc.
+model Lateral {
+  id              String      @id @default(cuid())
+  wellId          String
+  code            String
+  name            String?
+  type            LateralType @default(BRANCH)
+  parentLateralId String?
+  kickoffMd       Float?
+
+  well       Well      @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  parent     Lateral?  @relation("LateralBranches", fields: [parentLateralId], references: [id], onDelete: SetNull)
+  children   Lateral[] @relation("LateralBranches")
+
+  surveys             SurveyRun[]
+  formations          FormationInterval[]
+  lithologies         LithologyInterval[]
+  engineeringEvents   EngineeringEvent[]
+  constructionSections WellConstructionSection[]
+  casingStrings        CasingString[]
+  cementIntervals      CementInterval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([wellId, code])
+  @@index([wellId])
+}
+
+// Each uploaded Plan or Actual survey
+model SurveyRun {
+  id           String     @id @default(cuid())
+  lateralId    String
+  type         SurveyType
+  name         String?
+  sourceFile   String?
+  isActive     Boolean    @default(false)
+
+  lateral  Lateral         @relation(fields: [lateralId], references: [id], onDelete: Cascade)
+  stations SurveyStation[]
+
+  createdAt DateTime @default(now())
+
+  @@index([lateralId, type])
+}
+
+// Individual survey stations
+model SurveyStation {
+  id             String  @id @default(cuid())
+  surveyRunId    String
+  measuredDepth  Float
+  inclination    Float
+  azimuth        Float
+
+  // Minimum Curvature calculated coordinates
+  northing       Float?
+  easting        Float?
+  tvd            Float?
+  doglegSeverity Float?
+
+  surveyRun SurveyRun @relation(fields: [surveyRunId], references: [id], onDelete: Cascade)
+
+  @@unique([surveyRunId, measuredDepth])
+  @@index([surveyRunId])
+}
+
+// Formation depth intervals
+model FormationInterval {
+  id          String  @id @default(cuid())
+  wellId      String
+  lateralId   String?
+  name        String
+  ref         String  @default("TVD")
+  topMd       Float
+  baseMd      Float
+  description String?
+  color       String?
+
+  well        Well     @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  lateral     Lateral? @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+  lithologies LithologyInterval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId, lateralId])
+}
+
+// Lithology details and percentage
+model LithologyInterval {
+  id          String  @id @default(cuid())
+  lateralId   String?
+  formationId String?
+  name        String
+  topMd       Float
+  baseMd      Float
+  percentage  Float?
+  color       String?
+  description String?
+
+  lateral   Lateral?           @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+  formation FormationInterval? @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lateralId])
+  @@index([formationId])
+}
+
+// Drilling and engineering events
+model EngineeringEvent {
+  id          String   @id @default(cuid())
+  wellId      String
+  lateralId   String?
+  eventName   String
+  eventType   String?
+  measuredDepth Float?
+  eventDate   DateTime?
+  description String?
+
+  well     Well     @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  lateral  Lateral? @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([wellId, lateralId])
+}
+
+// Well construction sections
+model WellConstructionSection {
+  id          String  @id @default(cuid())
+  wellId      String
+  lateralId   String?
+  sectionName String
+  topMd       Float
+  baseMd      Float
+  holeSize    Float?
+  description String?
+
+  well    Well     @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  lateral Lateral? @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId])
+}
+
+// Casing details
+model CasingString {
+  id            String   @id @default(cuid())
+  wellId        String
+  lateralId     String?
+  casingName    String
+  topMd         Float
+  shoeMd        Float
+  outerDiameter Float?
+  weight        Float?
+  grade         String?
+  description   String?
+
+  well    Well     @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  lateral Lateral? @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId])
+}
+
+// Cement intervals
+model CementInterval {
+  id          String   @id @default(cuid())
+  wellId      String
+  lateralId   String?
+  name        String
+  topMd       Float
+  baseMd      Float
+  casingSize  Float?
+  description String?
+
+  well    Well     @relation(fields: [wellId], references: [id], onDelete: Cascade)
+  lateral Lateral? @relation(fields: [lateralId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId])
+}

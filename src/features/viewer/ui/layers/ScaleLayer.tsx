@@ -76,7 +76,7 @@ export function ScaleLayer({
   wells,
   color,
   labelColor,
-  gridColor,
+  gridColor: _gridColor,
   wellColors,
   visible = true,
 }: {
@@ -92,7 +92,20 @@ export function ScaleLayer({
   const unit = useSettings((s) => s.unit);
   const drillMode = useDrilling((s) => s.mode);
 
-  const staffPos = useMemo(() => computeStaffPosition(bounds, 10), [bounds]);
+  // TVD staff at the south-west corner of the 3D block: ticks every 500 ft, labels every 1,000 ft
+  // Matches original HTML line 515: const x0 = gx - half, z0 = gz + half
+  const staffPos = useMemo(() => {
+    if (!Number.isFinite(bounds.min.x) || !Number.isFinite(bounds.max.x)) {
+      return computeStaffPosition(bounds, 10, 'sw');
+    }
+    const c = bounds.getCenter(new Vector3());
+    const s = bounds.getSize(new Vector3());
+    const size = Math.ceil((Math.max(s.x, s.z) + 40) / 20) * 20;
+    const gx = Math.round(c.x / 10) * 10;
+    const gz = Math.round(c.z / 10) * 10;
+    const half = size / 2;
+    return { x: gx - half, z: gz + half };
+  }, [bounds]);
 
   // True maximum TVD across bounds, active lateral, and all multilateral wells
   const maxTvdFt = useMemo(() => {
@@ -215,22 +228,37 @@ export function ScaleLayer({
     }
   });
 
+  const staffGeometry = useMemo(() => {
+    const pts: Vector3[] = [
+      new Vector3(staffPos.x, 0, staffPos.z),
+      new Vector3(staffPos.x, -staffLength, staffPos.z),
+    ];
+    for (let d = 5; d <= staffLength; d += 5) {
+      pts.push(
+        new Vector3(staffPos.x, -d, staffPos.z),
+        new Vector3(staffPos.x + (Math.round(d) % 10 !== 0 ? 1.5 : 3.2), -d, staffPos.z),
+      );
+    }
+    return new BufferGeometry().setFromPoints(pts);
+  }, [staffPos.x, staffPos.z, staffLength]);
+
+  useEffect(() => {
+    return () => {
+      staffGeometry.dispose();
+    };
+  }, [staffGeometry]);
+
   if (!visible) return null;
 
   return (
     <group name="scale-layer">
-      {/* 1. TVD Staff vertical pole */}
-      <mesh position={[staffPos.x, -staffLength / 2, staffPos.z]}>
-        <cylinderGeometry args={[0.2, 0.2, staffLength, 12]} />
-        <meshStandardMaterial color={gridColor} roughness={0.6} />
-      </mesh>
+      {/* 1. TVD Staff LineSegments pole and ticks matching reference HTML line 518 */}
+      <lineSegments geometry={staffGeometry}>
+        <lineBasicMaterial color={labelColor} />
+      </lineSegments>
 
       {/* 2. Top TVD Axis Header Badge */}
-      <group position={[staffPos.x, 3.5, staffPos.z]}>
-        <mesh position={[0, -0.6, 0]}>
-          <coneGeometry args={[0.5, 1.2, 8]} />
-          <meshBasicMaterial color={gridColor} />
-        </mesh>
+      <group position={[staffPos.x, 4, staffPos.z]}>
         <Html center className="tvd-header-badge">
           TVD ({unit})
         </Html>
@@ -239,17 +267,12 @@ export function ScaleLayer({
       {/* 3. TVD Staff Depth Ticks: Major ticks every 1,000 ft show labels matching reference HTML line 519 */}
       {ticks.map((t) => {
         const isMajor = Math.round(t.tvdFt / 100) % 10 === 0;
+        if (!isMajor) return null;
         return (
           <group key={t.tvdFt} position={[staffPos.x, t.y, staffPos.z]}>
-            <mesh position={[isMajor ? 1.6 : 0.75, 0, 0]}>
-              <boxGeometry args={[isMajor ? 3.2 : 1.5, 0.12, 0.12]} />
-              <meshBasicMaterial color={labelColor} />
-            </mesh>
-            {isMajor && (
-              <Html position={[-1.2, 0, 0]} center={false} className="tvd-tick-label">
-                {t.label}
-              </Html>
-            )}
+            <Html position={[-1.2, 0, 0]} center={false} className="tvd-tick-label">
+              {t.label}
+            </Html>
           </group>
         );
       })}

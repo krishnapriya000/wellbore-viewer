@@ -81,8 +81,27 @@ describe('drawStripLog', () => {
     drawStripLog(ctx, options);
 
     expect(ctx.fillRect).toHaveBeenCalled();
+    // 1. Formation name
     expect(ctx.fillText).toHaveBeenCalledWith(
       expect.stringContaining('Overburden'),
+      expect.any(Number),
+      expect.any(Number),
+    );
+    // 2. Depth interval (From – To)
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      expect.stringContaining('0 ft – 1,500 ft'),
+      expect.any(Number),
+      expect.any(Number),
+    );
+    // 3. Lithology Name – Percentage (%)
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      expect.stringContaining('Shale – 70%, Sandstone – 30%'),
+      expect.any(Number),
+      expect.any(Number),
+    );
+    // Override badge
+    expect(ctx.fillText).toHaveBeenCalledWith(
+      expect.stringContaining('Sand Stringer (Override)'),
       expect.any(Number),
       expect.any(Number),
     );

@@ -1,7 +1,7 @@
 import type { DepthUnit } from '@/shared/units/units';
 import { formatNumber, toDisplay } from '@/shared/units/units';
 import type { Lithology } from '../model/types';
-import { LITHOLOGY_COLORS } from './lithologyColors';
+import { formatLithologyPercentageText, LITHOLOGY_COLORS } from './lithologyColors';
 import type { DepthTick, StripLogInterval } from './stripLogLayout';
 
 export interface StripLogDrawOptions {
@@ -15,6 +15,39 @@ export interface StripLogDrawOptions {
   unit: DepthUnit;
   theme: 'light' | 'dark';
   modeTitle: string;
+}
+
+/** Wraps text into multiple lines if it exceeds maxWidth. */
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  font: string,
+): string[] {
+  if (maxWidth <= 0) return [text];
+  ctx.save();
+  ctx.font = font;
+  if (ctx.measureText(text).width <= maxWidth) {
+    ctx.restore();
+    return [text];
+  }
+
+  const words = text.split(' ');
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of words) {
+    const testLine = currentLine ? `${currentLine} ${word}` : word;
+    if (ctx.measureText(testLine).width <= maxWidth) {
+      currentLine = testLine;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  }
+  if (currentLine) lines.push(currentLine);
+  ctx.restore();
+  return lines.length ? lines : [text];
 }
 
 /** Draws standard geological hatch patterns on a rectangle */
@@ -258,8 +291,6 @@ export function drawStripLog(ctx: CanvasRenderingContext2D, options: StripLogDra
     dpr,
     intervals,
     ticks,
-    minDepthFt,
-    maxDepthFt,
     unit,
     theme,
     modeTitle,
@@ -285,19 +316,15 @@ export function drawStripLog(ctx: CanvasRenderingContext2D, options: StripLogDra
   // Top header layout
   const headerH = 34;
   const colScaleW = 60;
-  const colLithoW = Math.min(120, Math.max(70, Math.round(width * 0.28)));
+  const colLithoW = Math.min(110, Math.max(68, Math.round(width * 0.25)));
   const xScale = colScaleW;
   const xLitho = xScale + colLithoW;
+  const padX = xLitho + 12;
+  const availableTextW = Math.max(80, width - padX - 12);
 
   const plotTop = headerH;
-  const plotBottom = height - 12;
-  const plotH = Math.max(10, plotBottom - plotTop);
-
-  const depthSpan = Math.max(1, maxDepthFt - minDepthFt);
-  const depthToY = (depthFt: number) => {
-    const fraction = (depthFt - minDepthFt) / depthSpan;
-    return plotTop + fraction * plotH;
-  };
+  const plotBottom = Math.max(plotTop + 10, height - 12);
+  const plotH = plotBottom - plotTop;
 
   // 1. Draw Track Headers
   ctx.fillStyle = cHeaderBg;
@@ -324,23 +351,7 @@ export function drawStripLog(ctx: CanvasRenderingContext2D, options: StripLogDra
   ctx.fillRect(xScale, 0, 1, height);
   ctx.fillRect(xLitho, 0, 1, height);
 
-  // 3. Draw Depth Scale Track (Left)
-  for (const t of ticks) {
-    const y = depthToY(t.depthFt);
-    if (y < plotTop || y > plotBottom) continue;
-
-    // Major tick line
-    ctx.fillStyle = cLine;
-    ctx.fillRect(xScale - 8, y, 8, 1);
-
-    // Depth label
-    ctx.font = '500 9px monospace';
-    ctx.fillStyle = cTextMuted;
-    ctx.textAlign = 'right';
-    ctx.fillText(t.label, xScale - 11, y + 3);
-  }
-
-  // 4. Draw Lithology Intervals (Center) & Information (Right)
+  // 3. Early return if no intervals
   if (!intervals.length) {
     ctx.font = '400 11px sans-serif';
     ctx.fillStyle = cTextMuted;
@@ -350,96 +361,218 @@ export function drawStripLog(ctx: CanvasRenderingContext2D, options: StripLogDra
     return;
   }
 
-  let lastLabelBottomY = plotTop - 10;
+  // 4. Calculate layout for each formation interval
+  // Each entry displays 3 distinct pieces of information with generous spacing:
+  // 1. Formation Name (Bold)
+  // 2. Depth Range (From – To)
+  // 3. Lithology Name – Percentage (%)
+  interface ProcessedInterval {
+    interval: StripLogInterval;
+    nameLines: string[];
+    depthRangeText: string;
+    lithologyLines: string[];
+    requiredH: number;
+    allocatedH: number;
+    yTop: number;
+    yBottom: number;
+  }
 
-  for (const interval of intervals) {
-    const y1 = Math.max(plotTop, depthToY(interval.fromFt));
-    const y2 = Math.min(plotBottom, depthToY(interval.toFt));
-    const intervalH = y2 - y1;
+  const processed: ProcessedInterval[] = intervals.map((interval) => {
+    const fromStr = `${formatNumber(toDisplay(interval.fromFt, unit), 0)} ${unit}`;
+    const toStr = `${formatNumber(toDisplay(interval.toFt, unit), 0)} ${unit}`;
+    const depthRangeText = `${fromStr} – ${toStr}`;
+
+    const displayName = interval.isOverride ? `${interval.name} (Override)` : interval.name;
+    const nameLines = wrapText(ctx, displayName, availableTextW, '700 12px sans-serif');
+
+    const lithText = formatLithologyPercentageText(interval.comp);
+    const lithologyLines = wrapText(ctx, lithText, availableTextW, '600 10px sans-serif');
+
+    // Height required for comfortable padding and clear vertical separation
+    const requiredH =
+      10 + // top padding
+      nameLines.length * 16 +
+      4 + // gap
+      14 + // depth interval line
+      4 + // gap
+      lithologyLines.length * 14 +
+      10; // bottom padding
+
+    return {
+      interval,
+      nameLines,
+      depthRangeText,
+      lithologyLines,
+      requiredH,
+      allocatedH: requiredH,
+      yTop: 0,
+      yBottom: 0,
+    };
+  });
+
+  const totalRequiredH = processed.reduce((sum, p) => sum + p.requiredH, 0);
+  const totalThickness = intervals.reduce((sum, p) => sum + Math.max(1, p.thicknessFt), 0);
+
+  if (plotH >= totalRequiredH) {
+    // Distribute remaining canvas height proportionally based on formation thickness
+    const extraBudget = plotH - totalRequiredH;
+    for (const p of processed) {
+      const extra = totalThickness > 0 ? (Math.max(1, p.interval.thicknessFt) / totalThickness) * extraBudget : 0;
+      p.allocatedH = p.requiredH + extra;
+    }
+  } else {
+    // Graceful fallback for constrained heights
+    const scale = plotH / Math.max(1, totalRequiredH);
+    for (const p of processed) {
+      p.allocatedH = Math.max(32, p.requiredH * scale);
+    }
+  }
+
+  // Position interval rows sequentially from plotTop
+  let curY = plotTop;
+  for (let i = 0; i < processed.length; i++) {
+    const p = processed[i]!;
+    p.yTop = curY;
+    p.yBottom = i === processed.length - 1 && plotH >= totalRequiredH ? plotBottom : curY + p.allocatedH;
+    curY = p.yBottom;
+  }
+
+  // Monotonic, continuous depth-to-Y mapping
+  const depthToY = (depthFt: number): number => {
+    if (!processed.length) return plotTop;
+    if (depthFt <= processed[0]!.interval.fromFt) return processed[0]!.yTop;
+    const last = processed[processed.length - 1]!;
+    if (depthFt >= last.interval.toFt) return last.yBottom;
+
+    for (const p of processed) {
+      if (depthFt >= p.interval.fromFt && depthFt <= p.interval.toFt) {
+        const span = p.interval.toFt - p.interval.fromFt;
+        if (span <= 0) return p.yTop;
+        const frac = (depthFt - p.interval.fromFt) / span;
+        return p.yTop + frac * (p.yBottom - p.yTop);
+      }
+    }
+    return plotTop;
+  };
+
+  // 5. Draw Depth Scale Track (Column 1 - Left)
+  // 5a. Formation boundary depth ticks
+  for (const p of processed) {
+    ctx.fillStyle = cLine;
+    ctx.fillRect(xScale - 8, p.yTop, 8, 1);
+
+    ctx.font = '600 9px monospace';
+    ctx.fillStyle = cTextMuted;
+    ctx.textAlign = 'right';
+    const topLabel = formatNumber(toDisplay(p.interval.fromFt, unit), 0);
+    ctx.fillText(topLabel, xScale - 11, p.yTop + 3);
+  }
+  if (processed.length) {
+    const last = processed[processed.length - 1]!;
+    ctx.fillStyle = cLine;
+    ctx.fillRect(xScale - 8, last.yBottom, 8, 1);
+    ctx.font = '600 9px monospace';
+    ctx.fillStyle = cTextMuted;
+    ctx.textAlign = 'right';
+    const bottomLabel = formatNumber(toDisplay(last.interval.toFt, unit), 0);
+    ctx.fillText(bottomLabel, xScale - 11, last.yBottom + 3);
+  }
+
+  // 5b. Intermediate rounded scale ticks (where spacing permits)
+  for (const t of ticks) {
+    const y = depthToY(t.depthFt);
+    if (y < plotTop + 10 || y > plotBottom - 10) continue;
+
+    // Skip if tick is too close to a formation boundary tick to avoid collision
+    const nearBoundary = processed.some(
+      (p) => Math.abs(y - p.yTop) < 13 || Math.abs(y - p.yBottom) < 13,
+    );
+    if (nearBoundary) continue;
+
+    ctx.fillStyle = cLine;
+    ctx.fillRect(xScale - 5, y, 5, 1);
+
+    ctx.font = '400 8.5px monospace';
+    ctx.fillStyle = cTextMuted;
+    ctx.textAlign = 'right';
+    ctx.fillText(t.label, xScale - 8, y + 3);
+  }
+
+  // 6. Draw Lithology Strip (Column 2 - Middle) & Formation Information (Column 3 - Right)
+  for (const p of processed) {
+    const intervalH = p.yBottom - p.yTop;
     if (intervalH <= 0.5) continue;
 
-    // Draw proportional multi-fraction lithology columns
-    const components = interval.comp.length > 0 ? interval.comp : [{ lith: 'shale' as Lithology, pct: 100 }];
-    let curX = xScale + 1;
+    // Column 2: Proportional multi-fraction lithology patterns
+    const components =
+      p.interval.comp.length > 0 ? p.interval.comp : [{ lith: 'shale' as Lithology, pct: 100 }];
+    let curBarX = xScale + 1;
     const availableW = colLithoW - 2;
 
     for (let cIdx = 0; cIdx < components.length; cIdx++) {
       const comp = components[cIdx]!;
       const fracW = (comp.pct / 100) * availableW;
-      const subW = cIdx === components.length - 1 ? availableW - (curX - (xScale + 1)) : fracW;
+      const subW = cIdx === components.length - 1 ? availableW - (curBarX - (xScale + 1)) : fracW;
 
-      // Fill sub-column background with component color
-      const baseColor = LITHOLOGY_COLORS[comp.lith]?.hex ?? interval.color.hex;
+      // Fill component color
+      const baseColor = LITHOLOGY_COLORS[comp.lith]?.hex ?? p.interval.color.hex;
       ctx.fillStyle = baseColor;
-      ctx.fillRect(curX, y1, subW, intervalH);
+      ctx.fillRect(curBarX, p.yTop, subW, intervalH);
 
       // Draw standard geological hatch pattern on top
-      drawLithologyHatch(ctx, comp.lith, curX, y1, subW, intervalH, cHatch);
+      drawLithologyHatch(ctx, comp.lith, curBarX, p.yTop, subW, intervalH, cHatch);
 
-      curX += subW;
+      curBarX += subW;
     }
 
-    // Boundary border lines
+    // Boundary divider line across both Column 2 and Column 3
     ctx.fillStyle = cLine;
-    ctx.fillRect(xScale, y2, width - xScale, 1);
+    ctx.fillRect(xScale, p.yBottom, width - xScale, 1);
 
-    // If MD override, draw highlighting border
-    if (interval.isOverride) {
+    // If MD override, draw highlighting border around the lithology box
+    if (p.interval.isOverride) {
       ctx.strokeStyle = cOverrideBorder;
       ctx.lineWidth = 1.5;
-      ctx.strokeRect(xScale + 1, y1, colLithoW - 2, intervalH);
+      ctx.strokeRect(xScale + 1, p.yTop, colLithoW - 2, intervalH);
     }
 
-    // 5. Draw Formation Information (Right Track)
-    const labelX = xLitho + 10;
-    const midY = (y1 + y2) / 2;
+    // Column 3: Formation & Strata Details
+    // Clip strictly to interval bounds so text stays completely within its interval
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(xLitho + 1, p.yTop, width - xLitho - 1, intervalH);
+    ctx.clip();
 
-    // Boundary depth pills
-    const fromStr = `${formatNumber(toDisplay(interval.fromFt, unit), 0)} ${unit}`;
-    const toStr = `${formatNumber(toDisplay(interval.toFt, unit), 0)} ${unit}`;
+    const contentH =
+      p.nameLines.length * 16 + 4 + 14 + 4 + p.lithologyLines.length * 14;
+    let textY = p.yTop + Math.max(12, Math.round((intervalH - contentH) / 2) + 12);
 
-    if (intervalH >= 34) {
-      // Full 3-line format: Name, Depth Range, Composition
-      ctx.font = '600 11px sans-serif';
-      ctx.fillStyle = interval.isOverride ? cOverrideBorder : cTextPrimary;
-      ctx.textAlign = 'left';
-      ctx.fillText(interval.name, labelX, midY - 6);
-
-      ctx.font = '500 9px monospace';
-      ctx.fillStyle = cTextMuted;
-      ctx.fillText(`${fromStr} – ${toStr}`, labelX, midY + 6);
-
-      ctx.font = '400 8.5px monospace';
-      ctx.fillStyle = isDark ? '#cbd5e1' : '#475569';
-      ctx.fillText(interval.compSummary, labelX, midY + 16);
-
-      lastLabelBottomY = midY + 18;
-    } else if (intervalH >= 18) {
-      // Compact 2-line format
-      ctx.font = '600 10px sans-serif';
-      ctx.fillStyle = interval.isOverride ? cOverrideBorder : cTextPrimary;
-      ctx.textAlign = 'left';
-      ctx.fillText(interval.name, labelX, midY - 1);
-
-      ctx.font = '500 8.5px monospace';
-      ctx.fillStyle = cTextMuted;
-      ctx.fillText(`${fromStr} – ${toStr}`, labelX, midY + 10);
-
-      lastLabelBottomY = midY + 12;
-    } else {
-      // Ultra-thin interval callout: adjust Y if crowded
-      let calloutY = midY + 3;
-      if (calloutY - lastLabelBottomY < 12) {
-        calloutY = lastLabelBottomY + 12;
-      }
-      if (calloutY < plotBottom - 4) {
-        ctx.font = '600 9px sans-serif';
-        ctx.fillStyle = interval.isOverride ? cOverrideBorder : cTextPrimary;
-        ctx.textAlign = 'left';
-        ctx.fillText(`${interval.name} (${fromStr}–${toStr})`, labelX, calloutY);
-        lastLabelBottomY = calloutY;
-      }
+    // Line 1: Formation Name (Bold)
+    ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = p.interval.isOverride ? cOverrideBorder : cTextPrimary;
+    ctx.textAlign = 'left';
+    for (const line of p.nameLines) {
+      ctx.fillText(line, padX, textY);
+      textY += 16;
     }
+
+    // Line 2: Depth Range (From – To)
+    textY += 2;
+    ctx.font = '500 10px "IBM Plex Mono", ui-monospace, monospace';
+    ctx.fillStyle = cTextMuted;
+    ctx.fillText(p.depthRangeText, padX, textY);
+    textY += 15;
+
+    // Line 3: Lithology Name – Percentage (%)
+    textY += 2;
+    ctx.font = '600 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillStyle = isDark ? '#38bdf8' : '#0284c7';
+    for (const line of p.lithologyLines) {
+      ctx.fillText(line, padX, textY);
+      textY += 14;
+    }
+
+    ctx.restore();
   }
 
   // Draw bottom boundary line
