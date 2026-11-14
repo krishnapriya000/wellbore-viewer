@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSurveyStore } from '@/features/survey';
-import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { getActiveWellId, useWellStore } from '@/features/wells';
 import { Authorized } from '@/shared/auth';
 import { backendClient } from '@/shared/api/backendClient';
 import { formatNumber, toDisplay } from '@/shared/units/units';
@@ -50,7 +50,7 @@ export function EventEditor() {
             note: e.description ?? '',
           }));
           setEvents(mapped);
-        } else if (events.length === 0) {
+        } else if (useEventsStore.getState().events.length === 0) {
           // If PostgreSQL has no events, seed with INITIAL_EVENTS
           await backendClient.batchSaveEngineeringEvents(wellId, INITIAL_EVENTS);
           if (active) setEvents(INITIAL_EVENTS);

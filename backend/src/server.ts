@@ -1165,14 +1165,504 @@ app.post("/api/wells/:wellId/construction/batch", async (req, res) => {
 });
 
 // ============================================
+// 7. WELL PLANNING APIs
+// ============================================
+
+// Helper validator for WellPlan
+function validateWellPlanPayload(data: {
+    wellId?: unknown;
+    targetDepthMD?: unknown;
+    targetDepthTVD?: unknown;
+    targetInclination?: unknown;
+    targetAzimuth?: unknown;
+    plannedKickoffDepth?: unknown;
+    targetObjective?: unknown;
+}): { valid: boolean; error?: string } {
+    if (!data.wellId || typeof data.wellId !== "string" || !data.wellId.trim()) {
+        return { valid: false, error: "wellId is required" };
+    }
+    if (typeof data.targetObjective !== "string" || !data.targetObjective.trim()) {
+        return { valid: false, error: "targetObjective is required" };
+    }
+    const md = Number(data.targetDepthMD);
+    if (isNaN(md) || md <= 0) {
+        return { valid: false, error: "targetDepthMD must be a positive number (> 0)" };
+    }
+    const tvd = Number(data.targetDepthTVD);
+    if (isNaN(tvd) || tvd <= 0) {
+        return { valid: false, error: "targetDepthTVD must be a positive number (> 0)" };
+    }
+    if (tvd > md) {
+        return { valid: false, error: "targetDepthTVD cannot exceed targetDepthMD (TVD <= MD)" };
+    }
+    const kop = Number(data.plannedKickoffDepth);
+    if (isNaN(kop) || kop < 0) {
+        return { valid: false, error: "plannedKickoffDepth must be 0 or greater" };
+    }
+    if (kop > md) {
+        return { valid: false, error: "plannedKickoffDepth cannot exceed targetDepthMD" };
+    }
+    const inc = Number(data.targetInclination);
+    if (isNaN(inc) || inc < 0 || inc > 180) {
+        return { valid: false, error: "targetInclination must be between 0 and 180 degrees" };
+    }
+    const azi = Number(data.targetAzimuth);
+    if (isNaN(azi) || azi < 0 || azi > 360) {
+        return { valid: false, error: "targetAzimuth must be between 0 and 360 degrees" };
+    }
+    return { valid: true };
+}
+
+// GET all well plans (optionally filtered by ?wellId=...)
+app.get("/api/well-plans", async (req, res) => {
+    try {
+        const { wellId } = req.query;
+        const whereClause = wellId && typeof wellId === "string" ? { wellId } : {};
+        const plans = await prisma.wellPlan.findMany({
+            where: whereClause,
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+            orderBy: { createdAt: "desc" },
+        });
+        res.json({ success: true, data: plans });
+    } catch (error) {
+        console.error("Error fetching well plans:", error);
+        res.status(500).json({ success: false, message: "Could not fetch well plans" });
+    }
+});
+
+// GET /api/wells/:wellId/well-plans
+app.get("/api/wells/:wellId/well-plans", async (req, res) => {
+    try {
+        const { wellId } = req.params;
+        const plans = await prisma.wellPlan.findMany({
+            where: { wellId },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+            orderBy: { createdAt: "desc" },
+        });
+        res.json({ success: true, data: plans });
+    } catch (error) {
+        console.error("Error fetching well plans for well:", error);
+        res.status(500).json({ success: false, message: "Could not fetch well plans" });
+    }
+});
+
+// GET single well plan by ID
+app.get("/api/well-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const plan = await prisma.wellPlan.findUnique({
+            where: { id },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+        if (!plan) {
+            res.status(404).json({ success: false, message: "Well plan not found" });
+            return;
+        }
+        res.json({ success: true, data: plan });
+    } catch (error) {
+        console.error("Error fetching well plan:", error);
+        res.status(500).json({ success: false, message: "Could not fetch well plan" });
+    }
+});
+
+// POST create well plan
+app.post("/api/well-plans", async (req, res) => {
+    try {
+        const validation = validateWellPlanPayload(req.body);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const {
+            wellId,
+            targetDepthMD,
+            targetDepthTVD,
+            targetInclination,
+            targetAzimuth,
+            plannedKickoffDepth,
+            targetObjective,
+            remarks,
+        } = req.body;
+
+        const wellExists = await prisma.well.findUnique({ where: { id: wellId } });
+        if (!wellExists) {
+            res.status(404).json({ success: false, message: `Well with id "${wellId}" not found` });
+            return;
+        }
+
+        const created = await prisma.wellPlan.create({
+            data: {
+                wellId,
+                targetDepthMD: Number(targetDepthMD),
+                targetDepthTVD: Number(targetDepthTVD),
+                targetInclination: Number(targetInclination),
+                targetAzimuth: Number(targetAzimuth),
+                plannedKickoffDepth: Number(plannedKickoffDepth),
+                targetObjective: targetObjective.trim(),
+                remarks: remarks && typeof remarks === "string" ? remarks.trim() : null,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        console.error("Error creating well plan:", error);
+        res.status(500).json({ success: false, message: "Could not create well plan" });
+    }
+});
+
+// POST /api/wells/:wellId/well-plans
+app.post("/api/wells/:wellId/well-plans", async (req, res) => {
+    try {
+        const payload = { ...req.body, wellId: req.params.wellId };
+        const validation = validateWellPlanPayload(payload);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const wellExists = await prisma.well.findUnique({ where: { id: req.params.wellId } });
+        if (!wellExists) {
+            res.status(404).json({ success: false, message: `Well with id "${req.params.wellId}" not found` });
+            return;
+        }
+
+        const created = await prisma.wellPlan.create({
+            data: {
+                wellId: req.params.wellId,
+                targetDepthMD: Number(payload.targetDepthMD),
+                targetDepthTVD: Number(payload.targetDepthTVD),
+                targetInclination: Number(payload.targetInclination),
+                targetAzimuth: Number(payload.targetAzimuth),
+                plannedKickoffDepth: Number(payload.plannedKickoffDepth),
+                targetObjective: payload.targetObjective.trim(),
+                remarks: payload.remarks && typeof payload.remarks === "string" ? payload.remarks.trim() : null,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        console.error("Error creating well plan:", error);
+        res.status(500).json({ success: false, message: "Could not create well plan" });
+    }
+});
+
+// PUT update well plan by ID
+app.put("/api/well-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.wellPlan.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Well plan not found" });
+            return;
+        }
+
+        const merged = {
+            wellId: req.body.wellId ?? existing.wellId,
+            targetDepthMD: req.body.targetDepthMD ?? existing.targetDepthMD,
+            targetDepthTVD: req.body.targetDepthTVD ?? existing.targetDepthTVD,
+            targetInclination: req.body.targetInclination ?? existing.targetInclination,
+            targetAzimuth: req.body.targetAzimuth ?? existing.targetAzimuth,
+            plannedKickoffDepth: req.body.plannedKickoffDepth ?? existing.plannedKickoffDepth,
+            targetObjective: req.body.targetObjective ?? existing.targetObjective,
+        };
+
+        const validation = validateWellPlanPayload(merged);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const updated = await prisma.wellPlan.update({
+            where: { id },
+            data: {
+                wellId: merged.wellId,
+                targetDepthMD: Number(merged.targetDepthMD),
+                targetDepthTVD: Number(merged.targetDepthTVD),
+                targetInclination: Number(merged.targetInclination),
+                targetAzimuth: Number(merged.targetAzimuth),
+                plannedKickoffDepth: Number(merged.plannedKickoffDepth),
+                targetObjective: merged.targetObjective.trim(),
+                remarks: req.body.remarks !== undefined
+                    ? (req.body.remarks ? String(req.body.remarks).trim() : null)
+                    : existing.remarks,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.json({ success: true, data: updated });
+    } catch (error) {
+        console.error("Error updating well plan:", error);
+        res.status(500).json({ success: false, message: "Could not update well plan" });
+    }
+});
+
+// DELETE well plan by ID
+app.delete("/api/well-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.wellPlan.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Well plan not found" });
+            return;
+        }
+
+        await prisma.wellPlan.delete({ where: { id } });
+        res.json({ success: true, message: "Well plan deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting well plan:", error);
+        res.status(500).json({ success: false, message: "Could not delete well plan" });
+    }
+});
+
+// ============================================
+// 8. MUD PLANNING APIs
+// ============================================
+
+// Helper validator for MudPlan
+function validateMudPlanPayload(data: {
+    wellId?: unknown;
+    mudType?: unknown;
+    mudWeight?: unknown;
+    plasticViscosity?: unknown;
+    yieldPoint?: unknown;
+    fluidLoss?: unknown;
+}): { valid: boolean; error?: string } {
+    if (!data.wellId || typeof data.wellId !== "string" || !data.wellId.trim()) {
+        return { valid: false, error: "wellId is required" };
+    }
+    if (typeof data.mudType !== "string" || !data.mudType.trim()) {
+        return { valid: false, error: "mudType is required" };
+    }
+    const mw = Number(data.mudWeight);
+    if (isNaN(mw) || mw <= 0 || mw > 25) {
+        return { valid: false, error: "mudWeight must be between 0.1 and 25.0 ppg" };
+    }
+    const pv = Number(data.plasticViscosity);
+    if (isNaN(pv) || pv < 0 || pv > 150) {
+        return { valid: false, error: "plasticViscosity must be between 0 and 150 cP" };
+    }
+    const yp = Number(data.yieldPoint);
+    if (isNaN(yp) || yp < 0 || yp > 120) {
+        return { valid: false, error: "yieldPoint must be between 0 and 120 lb/100ft²" };
+    }
+    const fl = Number(data.fluidLoss);
+    if (isNaN(fl) || fl < 0 || fl > 100) {
+        return { valid: false, error: "fluidLoss must be between 0 and 100 mL/30min" };
+    }
+    return { valid: true };
+}
+
+// GET all mud plans (optionally filtered by ?wellId=...)
+app.get("/api/mud-plans", async (req, res) => {
+    try {
+        const { wellId } = req.query;
+        const whereClause = wellId && typeof wellId === "string" ? { wellId } : {};
+        const plans = await prisma.mudPlan.findMany({
+            where: whereClause,
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+            orderBy: { createdAt: "desc" },
+        });
+        res.json({ success: true, data: plans });
+    } catch (error) {
+        console.error("Error fetching mud plans:", error);
+        res.status(500).json({ success: false, message: "Could not fetch mud plans" });
+    }
+});
+
+// GET /api/wells/:wellId/mud-plans
+app.get("/api/wells/:wellId/mud-plans", async (req, res) => {
+    try {
+        const { wellId } = req.params;
+        const plans = await prisma.mudPlan.findMany({
+            where: { wellId },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+            orderBy: { createdAt: "desc" },
+        });
+        res.json({ success: true, data: plans });
+    } catch (error) {
+        console.error("Error fetching mud plans for well:", error);
+        res.status(500).json({ success: false, message: "Could not fetch mud plans" });
+    }
+});
+
+// GET single mud plan by ID
+app.get("/api/mud-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const plan = await prisma.mudPlan.findUnique({
+            where: { id },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+        if (!plan) {
+            res.status(404).json({ success: false, message: "Mud plan not found" });
+            return;
+        }
+        res.json({ success: true, data: plan });
+    } catch (error) {
+        console.error("Error fetching mud plan:", error);
+        res.status(500).json({ success: false, message: "Could not fetch mud plan" });
+    }
+});
+
+// POST create mud plan
+app.post("/api/mud-plans", async (req, res) => {
+    try {
+        const validation = validateMudPlanPayload(req.body);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const {
+            wellId,
+            mudType,
+            mudWeight,
+            plasticViscosity,
+            yieldPoint,
+            fluidLoss,
+            remarks,
+        } = req.body;
+
+        const wellExists = await prisma.well.findUnique({ where: { id: wellId } });
+        if (!wellExists) {
+            res.status(404).json({ success: false, message: `Well with id "${wellId}" not found` });
+            return;
+        }
+
+        const created = await prisma.mudPlan.create({
+            data: {
+                wellId,
+                mudType: mudType.trim(),
+                mudWeight: Number(mudWeight),
+                plasticViscosity: Number(plasticViscosity),
+                yieldPoint: Number(yieldPoint),
+                fluidLoss: Number(fluidLoss),
+                remarks: remarks && typeof remarks === "string" ? remarks.trim() : null,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        console.error("Error creating mud plan:", error);
+        res.status(500).json({ success: false, message: "Could not create mud plan" });
+    }
+});
+
+// POST /api/wells/:wellId/mud-plans
+app.post("/api/wells/:wellId/mud-plans", async (req, res) => {
+    try {
+        const payload = { ...req.body, wellId: req.params.wellId };
+        const validation = validateMudPlanPayload(payload);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const wellExists = await prisma.well.findUnique({ where: { id: req.params.wellId } });
+        if (!wellExists) {
+            res.status(404).json({ success: false, message: `Well with id "${req.params.wellId}" not found` });
+            return;
+        }
+
+        const created = await prisma.mudPlan.create({
+            data: {
+                wellId: req.params.wellId,
+                mudType: payload.mudType.trim(),
+                mudWeight: Number(payload.mudWeight),
+                plasticViscosity: Number(payload.plasticViscosity),
+                yieldPoint: Number(payload.yieldPoint),
+                fluidLoss: Number(payload.fluidLoss),
+                remarks: payload.remarks && typeof payload.remarks === "string" ? payload.remarks.trim() : null,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        console.error("Error creating mud plan:", error);
+        res.status(500).json({ success: false, message: "Could not create mud plan" });
+    }
+});
+
+// PUT update mud plan by ID
+app.put("/api/mud-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.mudPlan.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Mud plan not found" });
+            return;
+        }
+
+        const merged = {
+            wellId: req.body.wellId ?? existing.wellId,
+            mudType: req.body.mudType ?? existing.mudType,
+            mudWeight: req.body.mudWeight ?? existing.mudWeight,
+            plasticViscosity: req.body.plasticViscosity ?? existing.plasticViscosity,
+            yieldPoint: req.body.yieldPoint ?? existing.yieldPoint,
+            fluidLoss: req.body.fluidLoss ?? existing.fluidLoss,
+        };
+
+        const validation = validateMudPlanPayload(merged);
+        if (!validation.valid) {
+            res.status(400).json({ success: false, message: validation.error });
+            return;
+        }
+
+        const updated = await prisma.mudPlan.update({
+            where: { id },
+            data: {
+                wellId: merged.wellId,
+                mudType: String(merged.mudType).trim(),
+                mudWeight: Number(merged.mudWeight),
+                plasticViscosity: Number(merged.plasticViscosity),
+                yieldPoint: Number(merged.yieldPoint),
+                fluidLoss: Number(merged.fluidLoss),
+                remarks: req.body.remarks !== undefined
+                    ? (req.body.remarks ? String(req.body.remarks).trim() : null)
+                    : existing.remarks,
+            },
+            include: { well: { select: { id: true, name: true, wellCode: true } } },
+        });
+
+        res.json({ success: true, data: updated });
+    } catch (error) {
+        console.error("Error updating mud plan:", error);
+        res.status(500).json({ success: false, message: "Could not update mud plan" });
+    }
+});
+
+// DELETE mud plan by ID
+app.delete("/api/mud-plans/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.mudPlan.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Mud plan not found" });
+            return;
+        }
+
+        await prisma.mudPlan.delete({ where: { id } });
+        res.json({ success: true, message: "Mud plan deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting mud plan:", error);
+        res.status(500).json({ success: false, message: "Could not delete mud plan" });
+    }
+});
+
+// ============================================
 // START SERVER
 // ============================================
 
 const server = app.listen(PORT, async () => {
-    console.log(`Backend server running at http://localhost:${PORT}`);
+    console.warn(`Backend server running at http://localhost:${PORT}`);
     try {
         await ensureDefaultWell();
-        console.log("Default well verified in PostgreSQL");
+        console.warn("Default well verified in PostgreSQL");
     } catch (err) {
         console.error("Error verifying default well:", err);
     }

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { getActiveWellId, useWellStore } from '@/features/wells';
 import { backendClient } from '@/shared/api/backendClient';
 import { Authorized } from '@/shared/auth';
 import { useUnits } from '@/shared/units/useUnits';

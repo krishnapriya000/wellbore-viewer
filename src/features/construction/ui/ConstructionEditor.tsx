@@ -1,6 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useSurveyStore } from '@/features/survey';
-import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { getActiveWellId, useWellStore } from '@/features/wells';
 import { backendClient } from '@/shared/api/backendClient';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
@@ -47,7 +47,7 @@ export function ConstructionEditor() {
             note: item.note ?? '',
           }));
           setItems(mapped);
-        } else if (items.length === 0) {
+        } else if (useConstructionStore.getState().items.length === 0) {
           await backendClient.batchSaveConstruction(wellId, INITIAL_CONSTRUCTION_ITEMS);
           if (active) setItems(INITIAL_CONSTRUCTION_ITEMS);
         }

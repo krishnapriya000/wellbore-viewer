@@ -99,6 +99,7 @@ function FormationLabelSprite({
 
   const sprite = useMemo(() => {
     if (typeof document === 'undefined') return null;
+    void fontsLoaded;
     return makeFormationSprite(name, 2.6, 600, labelColor);
   }, [name, labelColor, fontsLoaded]);
 

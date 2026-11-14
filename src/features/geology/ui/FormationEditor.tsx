@@ -1,7 +1,7 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import { useDrilling } from '@/features/drilling';
 import { useSurveyStore } from '@/features/survey';
-import { getActiveWellId, useWellStore } from '@/features/wells/model/wellStore';
+import { getActiveWellId, useWellStore } from '@/features/wells';
 import { backendClient } from '@/shared/api/backendClient';
 import { Authorized } from '@/shared/auth';
 import { formatNumber, toDisplay } from '@/shared/units/units';
@@ -74,7 +74,7 @@ export function FormationEditor() {
             visible: true,
           }));
           setFormations(mapped);
-        } else if (formations.length === 0) {
+        } else if (useGeologyStore.getState().formations.length === 0) {
           await backendClient.batchSaveFormations(wellId, INITIAL_FORMATIONS);
           if (active) setFormations(INITIAL_FORMATIONS);
         }

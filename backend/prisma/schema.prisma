@@ -35,6 +35,8 @@ model Well {
   constructionSections WellConstructionSection[]
   casingStrings        CasingString[]
   cementIntervals      CementInterval[]
+  wellPlans            WellPlan[]
+  mudPlans             MudPlan[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -230,3 +232,43 @@ model CementInterval {
 
   @@index([wellId])
 }
+
+// Well Planning targets and trajectory objectives
+model WellPlan {
+  id                  String   @id @default(cuid())
+  wellId              String
+  targetDepthMD       Float
+  targetDepthTVD      Float
+  targetInclination   Float
+  targetAzimuth       Float
+  plannedKickoffDepth Float
+  targetObjective     String
+  remarks             String?
+
+  well Well @relation(fields: [wellId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId])
+}
+
+// Drilling fluid properties and mud planning
+model MudPlan {
+  id               String   @id @default(cuid())
+  wellId           String
+  mudType          String
+  mudWeight        Float
+  plasticViscosity Float
+  yieldPoint       Float
+  fluidLoss        Float
+  remarks          String?
+
+  well Well @relation(fields: [wellId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wellId])
+}
+

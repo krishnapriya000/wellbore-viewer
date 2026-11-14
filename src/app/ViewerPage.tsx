@@ -3,7 +3,9 @@ import { ConstructionEditor, Schematic } from '@/features/construction';
 import { BitReadout, DrillControls, useDrilling } from '@/features/drilling';
 import { EventEditor } from '@/features/events';
 import { FormationEditor, StripLog, WellboreLithology } from '@/features/geology';
+import { MudPlanningEditor } from '@/features/mud-planning';
 import { McmExplanation, SurveyImport, SurveyTable, useSurveyStore } from '@/features/survey';
+import { WellPlanningEditor } from '@/features/well-planning';
 import { WellManager } from '@/features/wells';
 import { ErrorBoundary } from '@/shared/ui/ErrorBoundary';
 
@@ -96,6 +98,12 @@ export function ViewerPage() {
         </ErrorBoundary>
         <ErrorBoundary name="Well Management">
           <WellManager />
+        </ErrorBoundary>
+        <ErrorBoundary name="Well Planning">
+          <WellPlanningEditor />
+        </ErrorBoundary>
+        <ErrorBoundary name="Mud Planning">
+          <MudPlanningEditor />
         </ErrorBoundary>
       </aside>
     </main>

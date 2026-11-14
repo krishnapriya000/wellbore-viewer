@@ -115,6 +115,43 @@ export interface BackendConstructionItem {
   note: string | null;
 }
 
+export interface BackendWellPlan {
+  id: string;
+  wellId: string;
+  targetDepthMD: number;
+  targetDepthTVD: number;
+  targetInclination: number;
+  targetAzimuth: number;
+  plannedKickoffDepth: number;
+  targetObjective: string;
+  remarks: string | null;
+  createdAt: string;
+  updatedAt: string;
+  well?: {
+    id: string;
+    name: string;
+    wellCode: string | null;
+  };
+}
+
+export interface BackendMudPlan {
+  id: string;
+  wellId: string;
+  mudType: string;
+  mudWeight: number;
+  plasticViscosity: number;
+  yieldPoint: number;
+  fluidLoss: number;
+  remarks: string | null;
+  createdAt: string;
+  updatedAt: string;
+  well?: {
+    id: string;
+    name: string;
+    wellCode: string | null;
+  };
+}
+
 export const backendClient = {
   // --- Health & Connection ---
   checkHealth: () => request<{ success: boolean; message: string }>('/api/health'),
@@ -271,5 +308,67 @@ export const backendClient = {
     wellId: string,
     items: { kind: 'hole' | 'casing' | 'cement'; well: string; from: number; to: number; size: number; note?: string }[],
   ) => request<void>(`/api/wells/${wellId}/construction/batch`, { method: 'POST', body: JSON.stringify({ items }) }),
+
+  // --- Well Planning ---
+  getWellPlans: (wellId?: string) => {
+    const q = wellId && wellId !== 'all' ? `?wellId=${encodeURIComponent(wellId)}` : '';
+    return request<BackendWellPlan[]>(`/api/well-plans${q}`);
+  },
+  getWellPlan: (id: string) => request<BackendWellPlan>(`/api/well-plans/${id}`),
+  createWellPlan: (data: {
+    wellId: string;
+    targetDepthMD: number;
+    targetDepthTVD: number;
+    targetInclination: number;
+    targetAzimuth: number;
+    plannedKickoffDepth: number;
+    targetObjective: string;
+    remarks?: string;
+  }) => request<BackendWellPlan>('/api/well-plans', { method: 'POST', body: JSON.stringify(data) }),
+  updateWellPlan: (
+    id: string,
+    data: Partial<{
+      wellId: string;
+      targetDepthMD: number;
+      targetDepthTVD: number;
+      targetInclination: number;
+      targetAzimuth: number;
+      plannedKickoffDepth: number;
+      targetObjective: string;
+      remarks?: string | null;
+    }>,
+  ) => request<BackendWellPlan>(`/api/well-plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteWellPlan: (id: string) =>
+    request<{ success: boolean; message: string }>(`/api/well-plans/${id}`, { method: 'DELETE' }),
+
+  // --- Mud Planning ---
+  getMudPlans: (wellId?: string) => {
+    const q = wellId && wellId !== 'all' ? `?wellId=${encodeURIComponent(wellId)}` : '';
+    return request<BackendMudPlan[]>(`/api/mud-plans${q}`);
+  },
+  getMudPlan: (id: string) => request<BackendMudPlan>(`/api/mud-plans/${id}`),
+  createMudPlan: (data: {
+    wellId: string;
+    mudType: string;
+    mudWeight: number;
+    plasticViscosity: number;
+    yieldPoint: number;
+    fluidLoss: number;
+    remarks?: string;
+  }) => request<BackendMudPlan>('/api/mud-plans', { method: 'POST', body: JSON.stringify(data) }),
+  updateMudPlan: (
+    id: string,
+    data: Partial<{
+      wellId: string;
+      mudType: string;
+      mudWeight: number;
+      plasticViscosity: number;
+      yieldPoint: number;
+      fluidLoss: number;
+      remarks?: string | null;
+    }>,
+  ) => request<BackendMudPlan>(`/api/mud-plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteMudPlan: (id: string) =>
+    request<{ success: boolean; message: string }>(`/api/mud-plans/${id}`, { method: 'DELETE' }),
 };
 
