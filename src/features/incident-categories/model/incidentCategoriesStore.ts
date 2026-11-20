@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { backendClient, type BackendIncidentFamily, type BackendIncidentType } from '@/shared/api/backendClient';
 import { DEFAULT_FAMILIES, isActiveState } from './defaultTaxonomy';
+import { deriveSeverityFromConfidence, deriveStateFromConfidence } from './warningPrediction';
 import type {
   IncidentFamilyItem,
   IncidentFilters,
@@ -31,6 +32,7 @@ export interface IncidentCategoriesState {
   setFilter: (key: keyof IncidentFilters, value: string) => void;
   resetFilters: () => void;
   acknowledgeIncident: (code: string) => void;
+  updateIncidentConfidence: (code: string, newConfidence: number) => void;
 }
 
 const DEFAULT_FILTERS: IncidentFilters = {
@@ -325,5 +327,57 @@ export const useIncidentCategoriesStore = create<IncidentCategoriesState>()((set
         ? state.acknowledgedCodes
         : [...state.acknowledgedCodes, code],
     }));
+  },
+
+  updateIncidentConfidence(code, newConfidence) {
+    const clamped = Math.max(0, Math.min(1, newConfidence));
+    const nextSeverity = deriveSeverityFromConfidence(clamped);
+
+    set((state) => {
+      let updated = false;
+      const nextFamilies = state.families.map((fam) => {
+        const hasCode = fam.incidentTypes.some((t) => t.code === code || t.record?.code === code);
+        if (!hasCode) return fam;
+        updated = true;
+
+        const nextTypes = fam.incidentTypes.map((t) => {
+          if ((t.code === code || t.record?.code === code) && t.record) {
+            const nextState = deriveStateFromConfidence(clamped, t.record.state);
+            return {
+              ...t,
+              record: {
+                ...t.record,
+                confidence: clamped,
+                severity: nextSeverity,
+                state: nextState,
+                status: clamped < 0.5 ? ('Resolved' as const) : t.record.status,
+              },
+            };
+          }
+          return t;
+        });
+
+        const activeCount = nextTypes.filter((i) => i.record && isActiveState(i.record.state)).length;
+        const criticalCount = nextTypes.filter(
+          (i) => i.record?.severity === 'crit' && isActiveState(i.record.state),
+        ).length;
+        const warningCount = nextTypes.filter(
+          (i) => i.record?.severity === 'warn' && isActiveState(i.record.state),
+        ).length;
+        const advisoryCount = nextTypes.filter(
+          (i) => i.record?.severity === 'adv' && isActiveState(i.record.state),
+        ).length;
+
+        return {
+          ...fam,
+          incidentTypes: nextTypes,
+          activeCount,
+          criticalCount,
+          warningCount,
+          advisoryCount,
+        };
+      });
+      return updated ? { families: nextFamilies } : state;
+    });
   },
 }));

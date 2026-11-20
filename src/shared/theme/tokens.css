@@ -3,11 +3,17 @@
   --bg: #e9eeec;
   --surface: #f7f9f8;
   --surface-2: #eef2f0;
+  --surface-3: #e0e6e3;
   --ink: #172220;
+  --ink-2: #2d3b38;
+  --ink-3: #586662;
+  --ink-4: #80908b;
   --muted: #586662;
   --line: #c9d2cf;
+  --line-soft: #dce3e0;
   --accent: #1f5e73;
   --accent-ink: #ffffff;
+  --accent-soft: rgba(31, 94, 115, 0.12);
   --scene: #e1e7e5;
   --scene-grid: #b4c0bc;
   --scene-grid-2: #cfd8d5;
@@ -24,11 +30,22 @@
   --w5: #687c16;
   --w6: #8a4b2e;
   --ok: #2b7f48;
+  --ok-bg: rgba(43, 127, 72, 0.12);
+  --ok-ink: #2b7f48;
   --warn: #a96f12;
+  --warn-bg: rgba(169, 111, 18, 0.12);
+  --warn-ink: #a96f12;
   --crit: #bb3326;
+  --crit-bg: rgba(187, 51, 38, 0.12);
+  --crit-ink: #bb3326;
+  --adv: #157994;
+  --adv-bg: rgba(21, 121, 148, 0.12);
+  --adv-ink: #157994;
   --f-display: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', sans-serif;
   --f-body: 'Barlow', 'Segoe UI', system-ui, sans-serif;
   --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --f-ui: var(--f-body);
+  --f-num: var(--f-mono);
   color-scheme: light;
 }
 
@@ -37,11 +54,17 @@
     --bg: #0f1514;
     --surface: #162020;
     --surface-2: #1c2827;
+    --surface-3: #22302f;
     --ink: #e0e8e5;
+    --ink-2: #b8c7c3;
+    --ink-3: #90a09b;
+    --ink-4: #60736d;
     --muted: #90a09b;
     --line: #2b3735;
+    --line-soft: #232d2b;
     --accent: #6fb3c9;
     --accent-ink: #0b1214;
+    --accent-soft: rgba(111, 179, 201, 0.16);
     --scene: #0c1211;
     --scene-grid: #2f3d3a;
     --scene-grid-2: #1d2826;
@@ -58,8 +81,19 @@
     --w5: #b6cf4f;
     --w6: #e0936b;
     --ok: #5cc57e;
+    --ok-bg: rgba(92, 197, 126, 0.15);
+    --ok-ink: #7ae69e;
     --warn: #e3b14f;
+    --warn-bg: rgba(227, 177, 79, 0.15);
+    --warn-ink: #fbd680;
     --crit: #f07163;
+    --crit-bg: rgba(240, 113, 99, 0.15);
+    --crit-ink: #ff9187;
+    --adv: #4fd8ee;
+    --adv-bg: rgba(79, 216, 238, 0.14);
+    --adv-ink: #78e7f7;
+    --f-ui: var(--f-body);
+    --f-num: var(--f-mono);
     color-scheme: dark;
   }
 }
@@ -68,11 +102,17 @@
   --bg: #0f1514;
   --surface: #162020;
   --surface-2: #1c2827;
+  --surface-3: #22302f;
   --ink: #e0e8e5;
+  --ink-2: #b8c7c3;
+  --ink-3: #90a09b;
+  --ink-4: #60736d;
   --muted: #90a09b;
   --line: #2b3735;
+  --line-soft: #232d2b;
   --accent: #6fb3c9;
   --accent-ink: #0b1214;
+  --accent-soft: rgba(111, 179, 201, 0.16);
   --scene: #0c1211;
   --scene-grid: #2f3d3a;
   --scene-grid-2: #1d2826;
@@ -89,7 +129,18 @@
   --w5: #b6cf4f;
   --w6: #e0936b;
   --ok: #5cc57e;
+  --ok-bg: rgba(92, 197, 126, 0.15);
+  --ok-ink: #7ae69e;
   --warn: #e3b14f;
+  --warn-bg: rgba(227, 177, 79, 0.15);
+  --warn-ink: #fbd680;
   --crit: #f07163;
+  --crit-bg: rgba(240, 113, 99, 0.15);
+  --crit-ink: #ff9187;
+  --adv: #4fd8ee;
+  --adv-bg: rgba(79, 216, 238, 0.14);
+  --adv-ink: #78e7f7;
+  --f-ui: var(--f-body);
+  --f-num: var(--f-mono);
   color-scheme: dark;
 }

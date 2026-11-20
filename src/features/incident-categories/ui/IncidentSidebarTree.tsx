@@ -30,16 +30,19 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
   }
 
   const handleFamilyClick = (family: IncidentFamilyItem) => {
-    selectFamily(family.id);
-    toggleFamilyExpanded(family.id);
-    if (location.pathname !== '/') {
+    if (selectedFamilyId === family.id) {
+      toggleFamilyExpanded(family.id);
+    } else {
+      selectFamily(family.id);
+    }
+    if (location.pathname !== '/' && location.pathname !== '/incident-categories') {
       void navigate('/');
     }
   };
 
   const handleTypeClick = (_family: IncidentFamilyItem, typeId: string, code?: string) => {
     selectType(typeId, code);
-    if (location.pathname !== '/') {
+    if (location.pathname !== '/' && location.pathname !== '/incident-categories') {
       void navigate('/');
     }
   };
@@ -63,11 +66,11 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '5px 8px',
+                padding: '5px 6px',
                 borderRadius: '5px',
                 cursor: 'pointer',
-                background: isSelected ? 'var(--surface-2, #172229)' : 'transparent',
-                border: isSelected ? '1px solid var(--accent-line, rgba(42,157,178,.4))' : '1px solid transparent',
+                background: isSelected ? 'var(--accent-soft, rgba(31,94,115,.14))' : 'transparent',
+                border: isSelected ? '1px solid var(--accent, rgba(42,157,178,.4))' : '1px solid transparent',
                 transition: 'all 0.15s ease',
               }}
               onClick={() => handleFamilyClick(family)}
@@ -80,34 +83,55 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                 }
               }}
               aria-expanded={isExpanded}
+              title={family.name}
             >
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   minWidth: 0,
                   flex: 1,
                 }}
               >
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--ink-4)',
-                    display: 'inline-block',
-                    width: '10px',
-                    textAlign: 'center',
-                    transform: isExpanded ? 'rotate(90deg)' : 'none',
-                    transition: 'transform 0.15s ease',
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleFamilyExpanded(family.id);
                   }}
-                  aria-hidden="true"
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    padding: '2px 4px',
+                    margin: 0,
+                    cursor: 'pointer',
+                    color: isExpanded ? 'var(--ink)' : 'var(--ink-4)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.65rem',
+                    lineHeight: 1,
+                    borderRadius: '3px',
+                    flexShrink: 0,
+                  }}
+                  aria-label={isExpanded ? `Collapse ${family.name}` : `Expand ${family.name}`}
+                  title={isExpanded ? 'Collapse' : 'Expand'}
                 >
-                  ▶
-                </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      transform: isExpanded ? 'rotate(90deg)' : 'none',
+                      transition: 'transform 0.15s ease',
+                    }}
+                  >
+                    ▶
+                  </span>
+                </button>
                 <span
                   style={{
                     fontSize: '0.78rem',
-                    fontFamily: 'var(--f-ui, sans-serif)',
+                    fontFamily: 'var(--f-body, sans-serif)',
                     fontWeight: isSelected ? 600 : 500,
                     color: isSelected ? 'var(--ink)' : 'var(--ink-2)',
                     whiteSpace: 'nowrap',
@@ -128,7 +152,7 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                   alignItems: 'center',
                   gap: '4px',
                   flexShrink: 0,
-                  marginLeft: '6px',
+                  marginLeft: '4px',
                 }}
               >
                 {critCount > 0 && (
@@ -136,12 +160,12 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                     className="mini c"
                     style={{
                       background: 'var(--crit-bg, rgba(229,72,77,.13))',
-                      color: 'var(--crit-ink, #FF8189)',
-                      border: '1px solid rgba(229,72,77,.35)',
+                      color: 'var(--crit, #bb3326)',
+                      border: '1px solid var(--crit, rgba(229,72,77,.35))',
                       padding: '1px 4px',
                       borderRadius: '3px',
                       fontSize: '0.62rem',
-                      fontFamily: 'var(--f-num, monospace)',
+                      fontFamily: 'var(--f-mono, monospace)',
                       fontWeight: 700,
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -158,12 +182,12 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                     className="mini w"
                     style={{
                       background: 'var(--warn-bg, rgba(242,169,59,.13))',
-                      color: 'var(--warn-ink, #F7BF63)',
-                      border: '1px solid rgba(242,169,59,.35)',
+                      color: 'var(--warn, #a96f12)',
+                      border: '1px solid var(--warn, rgba(242,169,59,.35))',
                       padding: '1px 4px',
                       borderRadius: '3px',
                       fontSize: '0.62rem',
-                      fontFamily: 'var(--f-num, monospace)',
+                      fontFamily: 'var(--f-mono, monospace)',
                       fontWeight: 700,
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -178,13 +202,14 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                 <span
                   className="mini n"
                   style={{
-                    background: 'var(--surface-3, #1E2B34)',
-                    color: 'var(--ink-3)',
+                    background: 'var(--surface-2)',
+                    color: 'var(--ink-2)',
+                    border: '1px solid var(--line)',
                     padding: '1px 5px',
                     borderRadius: '3px',
                     fontSize: '0.64rem',
-                    fontFamily: 'var(--f-num, monospace)',
-                    fontWeight: 500,
+                    fontFamily: 'var(--f-mono, monospace)',
+                    fontWeight: 600,
                   }}
                   title={`${types.length} total monitored types, ${activeCount} active`}
                 >
@@ -201,10 +226,10 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1px',
-                  paddingLeft: '16px',
+                  paddingLeft: '14px',
                   marginTop: '2px',
                   borderLeft: '1px dashed var(--line)',
-                  marginLeft: '12px',
+                  marginLeft: '10px',
                 }}
               >
                 {types.map((type) => {
@@ -219,12 +244,12 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '7px',
-                        padding: '3px 8px',
+                        gap: '6px',
+                        padding: '3px 6px',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        background: isTypeSelected ? 'var(--accent-soft, rgba(42,157,178,.14))' : 'transparent',
-                        color: isTypeSelected ? 'var(--accent-ink, #5FC9DC)' : 'var(--ink-3)',
+                        background: isTypeSelected ? 'var(--accent-soft, rgba(31,94,115,.14))' : 'transparent',
+                        color: isTypeSelected ? 'var(--accent)' : 'var(--ink-2)',
                         transition: 'all 0.12s ease',
                       }}
                       onClick={() => handleTypeClick(family, type.id, type.code)}
@@ -252,7 +277,7 @@ export function IncidentSidebarTree({ isCollapsed = false }: IncidentSidebarTree
                       <span
                         style={{
                           fontSize: '0.74rem',
-                          fontFamily: 'var(--f-ui, sans-serif)',
+                          fontFamily: 'var(--f-body, sans-serif)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',

@@ -64,4 +64,29 @@ describe('IncidentSidebarTree', () => {
     const state = useIncidentCategoriesStore.getState();
     expect(state.selectedIncidentCode).toBe('DW-WC-02');
   });
+
+  it('allows clicking the dropdown arrow to expand and collapse a family', () => {
+    render(
+      <MemoryRouter>
+        <IncidentSidebarTree />
+      </MemoryRouter>,
+    );
+
+    // Well-control is initially expanded in beforeEach
+    const collapseBtn = screen.getByRole('button', { name: /Collapse 1\. Well-control/i });
+    expect(collapseBtn).toBeInTheDocument();
+
+    // Click collapse arrow button
+    fireEvent.click(collapseBtn);
+
+    // Verify it is collapsed in store and UI
+    expect(useIncidentCategoriesStore.getState().expandedFamilyIds).not.toContain('wc');
+
+    // Click expand arrow button
+    const expandBtn = screen.getByRole('button', { name: /Expand 1\. Well-control/i });
+    fireEvent.click(expandBtn);
+
+    // Verify it is re-expanded
+    expect(useIncidentCategoriesStore.getState().expandedFamilyIds).toContain('wc');
+  });
 });

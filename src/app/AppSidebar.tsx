@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router';
-import { useIncidentCategoriesStore } from '@/features/incident-categories';
-import { IncidentSidebarTree } from '@/features/incident-categories/ui/IncidentSidebarTree';
+import { IncidentSidebarTree, useIncidentCategoriesStore } from '@/features/incident-categories';
 
 interface NavItem {
   to: string;

@@ -92,7 +92,7 @@ export function ParameterSparkline({
             fontSize: '0.74rem',
             fontFamily: 'var(--f-num)',
             fontWeight: 600,
-            color: isPositive ? 'var(--warn-ink, #F7BF63)' : 'var(--ok-ink, #6FD6A4)',
+            color: isPositive ? 'var(--warn)' : 'var(--ok)',
           }}
         >
           {isPositive ? '+' : ''}
