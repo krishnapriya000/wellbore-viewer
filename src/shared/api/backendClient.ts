@@ -13,6 +13,15 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   };
 
   const response = await fetch(url, { ...options, headers });
+  const contentType = response.headers.get('content-type') || '';
+
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    throw new Error(
+      `Backend returned non-JSON response (${response.status} ${response.statusText}): ${text.slice(0, 100)}`
+    );
+  }
+
   const data = await response.json();
 
   if (!response.ok || data.success === false) {
@@ -150,6 +159,25 @@ export interface BackendMudPlan {
     name: string;
     wellCode: string | null;
   };
+}
+
+export interface BackendIncidentType {
+  id: string;
+  familyId: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BackendIncidentFamily {
+  id: string;
+  name: string;
+  description: string | null;
+  typesCount?: number;
+  incidentTypes?: BackendIncidentType[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const backendClient = {
@@ -370,5 +398,11 @@ export const backendClient = {
   ) => request<BackendMudPlan>(`/api/mud-plans/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteMudPlan: (id: string) =>
     request<{ success: boolean; message: string }>(`/api/mud-plans/${id}`, { method: 'DELETE' }),
+
+  // --- Incident Categories ---
+  getIncidentFamilies: () => request<BackendIncidentFamily[]>('/api/incident-categories'),
+  getIncidentFamily: (id: string) => request<BackendIncidentFamily>(`/api/incident-categories/${id}`),
+  getIncidentTypesByFamily: (familyId: string) =>
+    request<BackendIncidentType[]>(`/api/incident-categories/${familyId}/types`),
 };
 

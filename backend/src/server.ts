@@ -1655,6 +1655,240 @@ app.delete("/api/mud-plans/:id", async (req, res) => {
 });
 
 // ============================================
+// INCIDENT CATEGORIES & TAXONOMY
+// ============================================
+
+// GET /api/incident-categories - list all incident families with their types
+app.get("/api/incident-categories", async (_req, res) => {
+    try {
+        const families = await prisma.incidentFamily.findMany({
+            include: {
+                incidentTypes: {
+                    orderBy: { createdAt: "asc" },
+                },
+            },
+            orderBy: { createdAt: "asc" },
+        });
+
+        const data = families.map((f) => ({
+            id: f.id,
+            name: f.name,
+            description: f.description,
+            typesCount: f.incidentTypes.length,
+            incidentTypes: f.incidentTypes,
+            createdAt: f.createdAt,
+            updatedAt: f.updatedAt,
+        }));
+
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error("Error fetching incident categories:", error);
+        res.status(500).json({ success: false, message: "Could not fetch incident categories" });
+    }
+});
+
+// GET /api/incident-categories/:id - get single incident family
+app.get("/api/incident-categories/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const family = await prisma.incidentFamily.findUnique({
+            where: { id },
+            include: {
+                incidentTypes: {
+                    orderBy: { name: "asc" },
+                },
+            },
+        });
+
+        if (!family) {
+            res.status(404).json({ success: false, message: "Incident family not found" });
+            return;
+        }
+
+        res.json({
+            success: true,
+            data: {
+                ...family,
+                typesCount: family.incidentTypes.length,
+            },
+        });
+    } catch (error) {
+        console.error("Error fetching incident family:", error);
+        res.status(500).json({ success: false, message: "Could not fetch incident family" });
+    }
+});
+
+// GET /api/incident-categories/:familyId/types - list types for a family
+app.get("/api/incident-categories/:familyId/types", async (req, res) => {
+    try {
+        const { familyId } = req.params;
+        const types = await prisma.incidentType.findMany({
+            where: { familyId },
+            orderBy: { name: "asc" },
+        });
+        res.json({ success: true, data: types });
+    } catch (error) {
+        console.error("Error fetching incident types:", error);
+        res.status(500).json({ success: false, message: "Could not fetch incident types" });
+    }
+});
+
+// POST /api/incident-categories - create a new incident family
+app.post("/api/incident-categories", async (req, res) => {
+    try {
+        const { name, description } = req.body;
+        if (!name || typeof name !== "string") {
+            res.status(400).json({ success: false, message: "Family name is required" });
+            return;
+        }
+
+        const existing = await prisma.incidentFamily.findUnique({ where: { name: name.trim() } });
+        if (existing) {
+            res.status(400).json({ success: false, message: "An incident family with this name already exists" });
+            return;
+        }
+
+        const family = await prisma.incidentFamily.create({
+            data: {
+                name: name.trim(),
+                description: description ? String(description).trim() : null,
+            },
+            include: {
+                incidentTypes: true,
+            },
+        });
+
+        res.status(201).json({
+            success: true,
+            data: {
+                ...family,
+                typesCount: 0,
+            },
+        });
+    } catch (error) {
+        console.error("Error creating incident family:", error);
+        res.status(500).json({ success: false, message: "Could not create incident family" });
+    }
+});
+
+// PUT /api/incident-categories/:id - update an incident family
+app.put("/api/incident-categories/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, description } = req.body;
+
+        const existing = await prisma.incidentFamily.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Incident family not found" });
+            return;
+        }
+
+        const updated = await prisma.incidentFamily.update({
+            where: { id },
+            data: {
+                ...(name ? { name: String(name).trim() } : {}),
+                ...(description !== undefined ? { description: description ? String(description).trim() : null } : {}),
+            },
+            include: {
+                incidentTypes: true,
+            },
+        });
+
+        res.json({
+            success: true,
+            data: {
+                ...updated,
+                typesCount: updated.incidentTypes.length,
+            },
+        });
+    } catch (error) {
+        console.error("Error updating incident family:", error);
+        res.status(500).json({ success: false, message: "Could not update incident family" });
+    }
+});
+
+// DELETE /api/incident-categories/:id - delete an incident family
+app.delete("/api/incident-categories/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.incidentFamily.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Incident family not found" });
+            return;
+        }
+
+        await prisma.incidentFamily.delete({ where: { id } });
+        res.json({ success: true, message: "Incident family deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting incident family:", error);
+        res.status(500).json({ success: false, message: "Could not delete incident family" });
+    }
+});
+
+// POST /api/incident-categories/:familyId/types - create an incident type
+app.post("/api/incident-categories/:familyId/types", async (req, res) => {
+    try {
+        const { familyId } = req.params;
+        const { name, description } = req.body;
+
+        if (!name || typeof name !== "string") {
+            res.status(400).json({ success: false, message: "Type name is required" });
+            return;
+        }
+
+        const family = await prisma.incidentFamily.findUnique({ where: { id: familyId } });
+        if (!family) {
+            res.status(404).json({ success: false, message: "Incident family not found" });
+            return;
+        }
+
+        const existing = await prisma.incidentType.findUnique({
+            where: {
+                familyId_name: {
+                    familyId,
+                    name: name.trim(),
+                },
+            },
+        });
+        if (existing) {
+            res.status(400).json({ success: false, message: "This incident type already exists in this family" });
+            return;
+        }
+
+        const created = await prisma.incidentType.create({
+            data: {
+                familyId,
+                name: name.trim(),
+                description: description ? String(description).trim() : null,
+            },
+        });
+
+        res.status(201).json({ success: true, data: created });
+    } catch (error) {
+        console.error("Error creating incident type:", error);
+        res.status(500).json({ success: false, message: "Could not create incident type" });
+    }
+});
+
+// DELETE /api/incident-types/:id - delete an incident type
+app.delete("/api/incident-types/:id", async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma.incidentType.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ success: false, message: "Incident type not found" });
+            return;
+        }
+
+        await prisma.incidentType.delete({ where: { id } });
+        res.json({ success: true, message: "Incident type deleted successfully" });
+    } catch (error) {
+        console.error("Error deleting incident type:", error);
+        res.status(500).json({ success: false, message: "Could not delete incident type" });
+    }
+});
+
+// ============================================
 // START SERVER
 // ============================================
 

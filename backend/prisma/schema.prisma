@@ -272,3 +272,33 @@ model MudPlan {
   @@index([wellId])
 }
 
+// High-level incident classification (e.g. Well Control, Mechanical, Geomechanical)
+model IncidentFamily {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  incidentTypes IncidentType[]
+
+  @@map("incident_families")
+}
+
+// Granular incident types belonging to a family (e.g. Gas Kick, Stuck Pipe)
+model IncidentType {
+  id          String   @id @default(cuid())
+  familyId    String   @map("family_id")
+  name        String
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  family IncidentFamily @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, name])
+  @@index([familyId])
+  @@map("incident_types")
+}
+
+

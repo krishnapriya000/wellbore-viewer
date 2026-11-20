@@ -15,7 +15,16 @@ export default defineConfig(({ command, mode }) => {
     resolve: {
       alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
     },
-    server: { port: 5173, strictPort: true },
+    server: {
+      port: 5173,
+      strictPort: true,
+      proxy: {
+        '/api': {
+          target: 'http://localhost:5000',
+          changeOrigin: true,
+        },
+      },
+    },
     build: {
       sourcemap: true,
       // The three.js chunk (~320 kB gzip) is lazy-loaded after sign-in and first paint;
